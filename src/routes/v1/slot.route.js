@@ -1,0 +1,17 @@
+const express = require('express');
+const SlotController = require('../../controllers/slot.controller');
+const router = express.Router();
+const { SellerAuth } = require('../../controllers/sellerAuth.controller');
+router.route('/').post(SlotController.SlotCreation).get(SlotController.Fetch_Slot);
+router.route('/:id').put(SlotController.UpdateSlotById).delete(SlotController.DeleteSlotById);
+router.route('/slots/drop/doen').get(SlotController.getSlots_Minutse_Wise);
+router.route('/getDetails/For/Slot/Choosing').get(SlotController.getDetailsForSlotChoosing);
+router.route('/getDetails/slots').post(SellerAuth, SlotController.getSlotsWitdSort);
+router.route('/getSlots/by/SlotInfo').get(SlotController.getSlots_by_SlotInfo);
+router.route('/getSlots/Duraions').get(SlotController.getSlots_Duraions);
+router.route('/getStreamBySlots/:id').get(SlotController.getStreamBySlots);
+router.route('/getSlots/Details/Streaming/:id').get(SlotController.getSlots_Details_Streaming);
+router.route('/createEvents').post(SlotController.createEvents).get(SlotController.getEvents);
+router.route('/getEvents/ByEventId/:id').get(SlotController.getEventsByEventId);
+router.route('/getSlots/ByEvent').get(SlotController.getSlotsByEvent);
+module.exports = router;
