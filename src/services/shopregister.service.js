@@ -157,18 +157,18 @@ const login_now = async (body) => {
   const { mobile, password } = body;
   let userName = await Shop.findOne({ mobile: mobile });
   if (!userName) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Shop Not Found');
+    throw new ApiError(httpStatus.BAD_GATEWAY, 'Shop Not Found');
   }
   let disableCheck = await Shop.findOne({ mobile: mobile, active: false });
   if (disableCheck) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Your Account Has Been De-Activated, Please Contact Event Manager');
+    throw new ApiError(httpStatus.BAD_GATEWAY, 'Your Account Has Been De-Activated, Please Contact Event Manager');
   }
   userName = await Shop.findOne({ mobile: mobile, registered: true });
   if (!userName) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Shop Not Registered');
+    throw new ApiError(httpStatus.BAD_GATEWAY, 'Shop Not Registered');
   }
   if (!(await userName.isPasswordMatch(password))) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, "Password Doesn't Match");
+    throw new ApiError(httpStatus.BAD_GATEWAY, "Password Doesn't Match");
   }
 
   return userName;
