@@ -84,9 +84,6 @@ const streamplanschema = mongoose.Schema({
   no_of_host: {
     type: Number,
   },
-  slotInfo: {
-    type: Array,
-  },
   date: {
     type: String,
   },
@@ -512,12 +509,6 @@ const streamRequestschema = mongoose.Schema({
   totalMinues: {
     type: Number,
   },
-  slotId: {
-    type: String,
-  },
-  bookingslotId: {
-    type: String,
-  },
   Location: {
     type: String,
   },
@@ -838,40 +829,6 @@ const shopNotificationschema = mongoose.Schema({
 
 const shopNotification = mongoose.model('shopNotification', shopNotificationschema);
 
-const PlanSlotSchema = new mongoose.Schema(
-  {
-    _id: {
-      type: String,
-      default: v4,
-    },
-    slotType: {
-      type: String,
-    },
-    Duration: {
-      type: Number,
-    },
-    No_Of_Slot: {
-      type: String,
-    },
-    streamPlanId: {
-      type: String,
-    },
-    active: {
-      type: Boolean,
-      default: true,
-    },
-    slotId: {
-      type: String,
-    },
-    timeline: {
-      type: Array,
-      default: [],
-    }
-  },
-  { timestamps: true }
-);
-
-const PlanSlot = mongoose.model('planslot', PlanSlotSchema);
 
 const intrestedschema = mongoose.Schema({
   _id: {
@@ -1024,7 +981,6 @@ module.exports = {
   streamPlanlink,
   Slab,
   shopNotification,
-  PlanSlot,
   Instestedproduct,
   Savedproduct,
   Notify,

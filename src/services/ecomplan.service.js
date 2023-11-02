@@ -8,7 +8,6 @@ const {
   streamPlanlink,
   Slab,
   shopNotification,
-  PlanSlot,
   Instestedproduct,
   Savedproduct,
   Notify,
@@ -42,11 +41,6 @@ const { Usermessage, Interaction } = require('../models/PrivateChat.model');
 const create_Plans = async (req) => {
   const { slotInfo, stream_validity } = req.body;
   const value = await Streamplan.create({ ...req.body, ...{ planType: 'normal', timeline: [{ status: "Created", Time: new Date().getTime(), timelieId: req.timeline }] } });
-  slotInfo.forEach(async (e) => {
-    let datas = { slotType: e.slotType, Duration: e.Duration, No_Of_Slot: e.No_Of_Slot, streamPlanId: value._id };
-    console.log(datas);
-    await PlanSlot.create(datas);
-  });
   await Dates.create_date(value);
   return req.body;
 };
