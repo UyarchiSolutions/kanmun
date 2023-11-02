@@ -1617,23 +1617,10 @@ const remove_one_post = async (req) => {
 };
 
 const create_stream_one = async (req) => {
-  let slot_booking = await SlotBooking.findById(req.body.slot);
-  if (!slot_booking) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'SLot Booking not found');
-  }
-  if (slot_booking.status == 'Booked') {
-    throw new ApiError(httpStatus.NOT_FOUND, 'SLot Alredy Booked');
-  }
-  let current_deta = new Date().getTime();
-  let slot = await Slot.findById(slot_booking.slotId);
-  if (slot.end < current_deta) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Slot Time Ended');
-  }
-  let data = slot.date;
-  let time = slot.startFormat;
-  let startTime = new Date(new Date(data + ' ' + time)).getTime();
+
+  let startTime = new Date(req.body.dateTime).getTime()
   let plan = await purchasePlan.findById(req.body.planId);
-  let Duration = slot.Duration;
+  let Duration = plan.Duration;
   let numberOfParticipants = plan.numberOfParticipants * Duration;
   let no_of_host = plan.no_of_host * Duration;
 
@@ -1641,7 +1628,7 @@ const create_stream_one = async (req) => {
   let agoraID = await agoraToken.token_assign(totalMinutes, '', 'agri');
 
 
-  let datess = new Date().setTime(new Date(startTime).getTime() + slot.Duration * 60 * 1000);
+  let datess = new Date().setTime(new Date(startTime).getTime() + plan.Duration * 60 * 1000);
   let expiretime = datess;
   if (plan.completedStream == 'yes') {
     expiretime = moment(datess).add(plan.stream_validity, plan.TimeType);
@@ -1655,18 +1642,15 @@ const create_stream_one = async (req) => {
         suppierId: req.userId,
         postCount: req.body.post.length,
         startTime: startTime,
-        Duration: slot.Duration,
+        Duration: plan.Duration,
         noOfParticipants: plan.numberOfParticipants,
         chat: plan.chat_Option,
         max_post_per_stream: parseInt(plan.PostCount),
         sepTwo: 'Completed',
         planId: req.body.planId,
-        Duration: slot.Duration,
         endTime: datess,
         streamEnd_Time: datess,
-        slotId: slot._id,
-        bookingslotId: slot_booking._id,
-        streamingDate: slot.date,
+        streamingDate: req.body.dateTime,
         streamPlanId: plan.planId,
         agoraID: agoraID.element._id,
         totalMinues: totalMinutes,
@@ -1688,9 +1672,6 @@ const create_stream_one = async (req) => {
       await Dates.create_date(post);
     });
     await Dates.create_date(value);
-    slot_booking = await SlotBooking.findByIdAndUpdate({ _id: slot_booking._id }, { status: 'Booked' }, { new: true });
-    slot_booking.timeline.push({ status: "Booked", Time: new Date().getTime(), timelieId: req.timeline });
-    slot_booking.save();
   } else {
     throw new ApiError(httpStatus.NOT_FOUND, 'App id Not found');
   }

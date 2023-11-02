@@ -172,6 +172,7 @@ const create_purchase_plan_addon = async (req) => {
           paymentStatus: collectedstatus,
           order_id: payment.order_id,
           noOfParticipants: plan.numberOfParticipants,
+          Duration: plan.Duration,
         },
         ...req.body.PaymentDatails,
       });
@@ -538,6 +539,9 @@ const create_PurchasePlan_EXpo = async (planId, userId, ccavenue, gst) => {
     raisehandcontrol: findPlan.raisehandcontrol,
     totalAmount: findPlan.offer_price + gst,
     gst: gst,
+    Duration: findPlan.Duration,
+    numberofStream: findPlan.numberofStream,
+
   };
   console.log(data);
   const creations = await purchasePlan.create(data);
@@ -586,6 +590,8 @@ const create_PurchasePlan_EXpo_Admin = async (body, userId) => {
     TimeType: findPlan.TimeType,
     raisehandcontrol: findPlan.raisehandcontrol,
     Type: body.Type,
+    Duration: findPlan.Duration,
+    numberofStream: findPlan.numberofStream,
   };
   const creations = await purchasePlan.create(data);
   // await Purchased_Message(findUser.tradeName, findPlan.planName, findUser.mobileNumber);
