@@ -92,6 +92,9 @@ const SellerSchema = new mongoose.Schema(
     GST_Number: {
       type: String,
     },
+    purchaseplan: {
+      type: Boolean,
+    }
   },
   {
     timestamps: { createdAt: 'createdDate', updatedAt: 'updatedDate' },

@@ -160,6 +160,66 @@ const exhibitor_purchese_plan = async (amount, redirct, paymentLink, price, gst)
     return { payment };
 }
 
+
+
+
+const mexhibitor_purchese_plan = async (amount, redirct, paymentLink, price, gst) => {
+    var body = '',
+        workingKey = 'C9C73B4F2FB59E0EEFEBDD27B8895894',	//Put in the 32-Bit key shared by CCAvenues.
+        accessCode = 'AVJM05KJ27BF28MJFB',				//Put in the Access Code shared by CCAvenues.
+        encRequest = '';
+    const orderId = uuid.v4();
+    const merchantId = '2742878';
+
+    let data = {
+        merchant_id: merchantId,
+        order_id: orderId,
+        currency: "INR",
+        amount: amount,
+        redirect_url: redirct,
+        cancel_url: redirct,
+        language: "EN",
+        billing_name: "Peter",
+        billing_address: "Santacruz",
+        billing_city: "Mumbai",
+        billing_state: "MH",
+        billing_zip: "400054",
+        billing_country: "India",
+        billing_tel: "9876543210",
+        billing_email: "testing@domain.com",
+        delivery_name: "Sam",
+        delivery_address: "Vile Parle",
+        delivery_city: "Mumbai",
+        delivery_state: "Maharashtra",
+        delivery_zip: "400038",
+        delivery_country: "India",
+        delivery_tel: "0123456789",
+        merchant_param1: 'https://mexhibitor.agriexpo.live/dashboard/payment-success',
+        merchant_param2: "additional Info.",
+        merchant_param3: "additional Info.",
+        merchant_param4: "additional Info.",
+        merchant_param5: "additional Info.",
+        promo_code: "",
+        redirct: redirct,
+        my_redirect_url: redirct,
+        price: price,
+        gst: gst,
+        integration_type: 'iframe_normal'
+    };
+    const queryString = objectToQueryString(data);
+    const bufferData = Buffer.from(queryString, 'utf-8');
+    encRequest = ccav.encrypt(bufferData, workingKey);
+    data.encRequest = encRequest;
+    data.paymentLink = paymentLink
+    const payment = await create_plan_paymant(data)
+    data.merchant_param1 = payment._id;
+    // formbody = '<form id="nonseamless" method="post" name="redirect" action="https://test.ccavenue.com/transaction/transaction.do?command=initiateTransaction"/> <input type="hidden" id="encRequest" name="encRequest" value="' + encRequest + '"><input type="hidden" name="access_code" id="access_code" value="' + accessCode + '"><button>pay</button><script language="javascript">document.redirect.submit();</script></form>';
+    return { payment };
+}
+
+
+
+
 const create_plan_paymant = async (data) => {
     let payment = await ccavenue_paymnet.create(data);
     return payment;
@@ -515,7 +575,8 @@ module.exports = {
     create_plan_paymant,
     get_paymant_success_response,
     get_paymant_success_response_exp,
-    get_ccavenue_details
+    get_ccavenue_details,
+    mexhibitor_purchese_plan
 }
 
 

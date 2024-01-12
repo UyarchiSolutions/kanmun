@@ -7,6 +7,8 @@ const bcrypt = require('bcryptjs');
 const moment = require('moment');
 
 const { Streamplan, StreamPost, Streamrequest, StreamrequestPost, StreamPreRegister } = require('../models/ecomplan.model');
+
+const { purchasePlan } = require('../models/purchasePlan.model');
 const createSeller = async (req) => {
   let body = req.body;
   let value = await Seller.findOne({ mobileNumber: body.mobileNumber });
@@ -223,15 +225,25 @@ const createSubUser = async (req) => {
 
 const mydetails = async (req) => {
   let sellerID = req.userId;
-  let value = await Seller.findById(sellerID);
+  let value = await Seller.findById(sellerID).select({
+    active: 0,
+    archive: 0,
+    createdDate: 0,
+    notifyCount: 0,
+    password: 0,
+    updatedDate: 0,
+  });;
 
   if (!value) {
     throw new ApiError(httpStatus.NOT_FOUND, 'User Not Found');
   }
-  let mutableQueryResult = value; // _doc property holds the mutable object
-  delete mutableQueryResult.password;
+  // let mutableQueryResult = value; // _doc property holds the mutable object
+  // delete mutableQueryResult.password;
 
-  return mutableQueryResult;
+  let purchase = await purchasePlan.find({ suppierId: value._id }).limit(1);
+  let purchaseplan = purchase != null ? purchase.length == 0 ? false : true : false;
+  value.purchaseplan = purchaseplan;
+  return value;
 };
 
 const GetAllSeller = async () => {

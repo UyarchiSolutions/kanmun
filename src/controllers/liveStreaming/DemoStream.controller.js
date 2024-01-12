@@ -3,7 +3,29 @@ const catchAsync = require('../../utils/catchAsync');
 const demostream = require('../../services/liveStreaming/DemoStream.service');
 
 const send_livestream_link = catchAsync(async (req, res) => {
-  const data = await demostream.send_livestream_link(req);
+  let data;
+  if (req.body.type == 'meet-RYH') {
+    data = await demostream.send_livestream_link_ryh(req);
+  }
+  else if (req.body.type != 'assessment') {
+    data = await demostream.send_livestream_link(req);
+  }
+  else {
+    data = await demostream.send_livestream_link_assessment(req);
+  }
+  res.status(httpStatus.CREATED).send(data);
+});
+
+const send_livestream_link_demo = catchAsync(async (req, res) => {
+  const data = await demostream.send_livestream_link_demo(req);
+  res.status(httpStatus.CREATED).send(data);
+});
+const turn_on_chat = catchAsync(async (req, res) => {
+  const data = await demostream.turn_on_chat(req);
+  res.status(httpStatus.CREATED).send(data);
+});
+const get_demo_requests = catchAsync(async (req, res) => {
+  const data = await demostream.get_demo_requests(req);
   res.status(httpStatus.CREATED).send(data);
 });
 
@@ -12,12 +34,10 @@ const demorequest = catchAsync(async (req, res) => {
   res.status(httpStatus.CREATED).send(data);
 });
 
-
 const get_demo_request = catchAsync(async (req, res) => {
   const data = await demostream.get_demo_request(req);
   res.status(httpStatus.CREATED).send(data);
 });
-
 
 const send_request_link = catchAsync(async (req, res) => {
   const data = await demostream.send_request_link(req);
@@ -57,8 +77,34 @@ const join_stream_buyer = catchAsync(async (req, res) => {
   const data = await demostream.join_stream_buyer(req);
   res.status(httpStatus.CREATED).send(data);
 });
+const join_stream_candidate = catchAsync(async (req, res) => {
+  const data = await demostream.join_stream_candidate(req);
+  res.status(httpStatus.CREATED).send(data);
+});
 const buyer_go_live_stream = catchAsync(async (req, res) => {
   const data = await demostream.buyer_go_live_stream(req);
+  res.status(httpStatus.CREATED).send(data);
+});
+
+const get_interviewer_list = catchAsync(async (req, res) => {
+  const data = await demostream.get_interviewer_list(req);
+  res.status(httpStatus.CREATED).send(data);
+});
+
+const join_live = catchAsync(async (req, res) => {
+  const data = await demostream.join_live(req);
+  res.status(httpStatus.CREATED).send(data);
+});
+
+
+const end_live = catchAsync(async (req, res) => {
+  const data = await demostream.end_live(req);
+  res.status(httpStatus.CREATED).send(data);
+});
+
+
+const leave_admin_call = catchAsync(async (req, res) => {
+  const data = await demostream.leave_admin_call(req);
   res.status(httpStatus.CREATED).send(data);
 });
 
@@ -109,7 +155,7 @@ const go_live = catchAsync(async (req, res) => {
 });
 
 const get_DemoStream_By_Admin = catchAsync(async (req, res) => {
-  const data = await demostream.get_DemoStream_By_Admin(req.params.page,req.userId);
+  const data = await demostream.get_DemoStream_By_Admin(req.params.page, req.userId);
   res.send(data);
 });
 
@@ -237,6 +283,44 @@ const issueResolve = catchAsync(async (req, res) => {
   res.status(httpStatus.OK).send(TechIssue);
 });
 
+const getDatas = catchAsync(async (req, res) => {
+  const TechIssue = await demostream.getDatas();
+  res.status(httpStatus.OK).send(TechIssue);
+});
+
+const toggle_raise_hand = catchAsync(async (req, res) => {
+  const TechIssue = await demostream.toggle_raise_hand(req);
+  res.status(httpStatus.OK).send(TechIssue);
+});
+
+const raise_my_hands = catchAsync(async (req, res) => {
+  const TechIssue = await demostream.raise_my_hands(req);
+  res.status(httpStatus.OK).send(TechIssue);
+});
+
+const accept_raise_hands = catchAsync(async (req, res) => {
+  const TechIssue = await demostream.accept_raise_hands(req);
+  res.status(httpStatus.OK).send(TechIssue);
+});
+
+const end_raise_hands = catchAsync(async (req, res) => {
+  const TechIssue = await demostream.end_raise_hands(req);
+  res.status(httpStatus.OK).send(TechIssue);
+});
+
+const leave_raise_hands = catchAsync(async (req, res) => {
+  const TechIssue = await demostream.leave_raise_hands(req);
+  res.status(httpStatus.OK).send(TechIssue);
+});
+
+
+const stop_recording = catchAsync(async (req, res) => {
+  const TechIssue = await demostream.stop_recording(req);
+  res.status(httpStatus.OK).send(TechIssue);
+});
+
+
+
 module.exports = {
   send_livestream_link,
   get_stream_details,
@@ -244,6 +328,7 @@ module.exports = {
   get_stream_details_check,
   go_live_stream,
   join_stream_buyer,
+  join_stream_candidate,
   get_stream_verify_buyer,
   get_buyer_token,
   stream_register_buyer,
@@ -284,5 +369,19 @@ module.exports = {
   issueResolve,
   demorequest,
   get_demo_request,
-  send_request_link
+  send_request_link,
+  send_livestream_link_demo,
+  get_demo_requests,
+  turn_on_chat,
+  get_interviewer_list,
+  join_live,
+  end_live,
+  leave_admin_call,
+  getDatas,
+  toggle_raise_hand,
+  raise_my_hands,
+  accept_raise_hands,
+  end_raise_hands,
+  leave_raise_hands,
+  stop_recording
 };

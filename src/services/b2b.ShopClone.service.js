@@ -3806,8 +3806,7 @@ const get_userbased_dataapproved = async (query) => {
   for (let i = 0; i < shops.length; i++) {
     if (shops[i].distanceStatus != 'updated') {
       let response = await axios.get(
-        `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${
-          shops[i].Slat + ',' + shops[i].Slong
+        `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${shops[i].Slat + ',' + shops[i].Slong
         }&destinations=${shops[i].da_lot + ',' + shops[i].da_long}&key=AIzaSyC4f71KgUy-ocpdfmadcNPy-wrVks4YSdY`
       );
       if (i == 0) {
@@ -3815,8 +3814,7 @@ const get_userbased_dataapproved = async (query) => {
         long = shops[i].Slong;
       }
       let dis = await axios.get(
-        `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${lat + ',' + long}&destinations=${
-          shops[i].Slat + ',' + shops[i].Slong
+        `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${lat + ',' + long}&destinations=${shops[i].Slat + ',' + shops[i].Slong
         }&key=AIzaSyC4f71KgUy-ocpdfmadcNPy-wrVks4YSdY`
       );
       // //console.log(dis.data.rows[0].elements[0].distance.text);

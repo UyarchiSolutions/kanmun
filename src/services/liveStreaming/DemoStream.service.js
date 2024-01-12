@@ -31,19 +31,35 @@ const {
   Democloudrecord,
   Feedback,
   TechIssue,
-  Demorequest
+  Demorequest,
+  Demoraisehands
 } = require('../../models/liveStreaming/DemoStream.model');
 const jwt = require('jsonwebtoken');
 const agoraToken = require('./AgoraAppId.service');
 const emailservice = require('../email.service');
 
+const { Seller } = require('../../models/seller.models');
+
 const secret = 'demoStream';
 const Agora = require('agora-access-token');
 const sms_send_seller = async (link, mobile) => {
   mobile = 91 + '' + mobile;
+  console.log(mobile);
+  console.log(link);
+  let message = `Dear Client, Thanks for your interest in our services. You can test our service by using this link https://ag23.site/s/${link} - AgriExpoLive2023(An Ookam company event)`;
+  let reva = await axios.get(
+    `http://panel.smsmessenger.in/api/mt/SendSMS?user=ookam&password=ookam&senderid=OOKAMM&channel=Trans&DCS=0&flashsms=0&number=${mobile}&text=${message}&route=6&peid=1701168700339760716&DLTTemplateId=1707168958870053466`
+  );
+  console.log(reva.data);
+  return reva.data;
+};
+const sms_send_seller_assessment = async (link, mobile) => {
+  mobile = 91 + '' + mobile;
   console.log(mobile)
   console.log(link)
-  let message = `Dear Client, Thanks for your interest in our services. You can test our service by using this link https://ag23.site/s/${link} - AgriExpoLive2023(An Ookam company event)`;
+  // let message = `Dear Client, Thanks for your interest in our services. You can test our service by using this link https://ag23.site/s/${'a/' + link} - AgriExpoLive2023(An Ookam company event)`;
+  let message = `Dear Client, Thanks for your interest in our services. You can test our service by using this link https://ag23.site/s/${'a/' + link
+    } - AgriExpoLive2023(An Ookam company event)`;
   let reva = await axios.get(
     `http://panel.smsmessenger.in/api/mt/SendSMS?user=ookam&password=ookam&senderid=OOKAMM&channel=Trans&DCS=0&flashsms=0&number=${mobile}&text=${message}&route=6&peid=1701168700339760716&DLTTemplateId=1707168958870053466`
   );
@@ -92,8 +108,7 @@ const demorequest = async (req) => {
     location: location,
   });
   return demostream;
-}
-
+};
 
 const get_demo_request = async (req) => {
   let page = req.query.page == '' || req.query.page == null || req.query.page == null ? 0 : req.query.page;
@@ -140,7 +155,7 @@ const get_demo_request = async (req) => {
               },
             },
           },
-          { $limit: 1 }
+          { $limit: 1 },
         ],
         as: 'demostreams',
       },
@@ -158,34 +173,33 @@ const get_demo_request = async (req) => {
         streamID: 1,
         dateISO: 1,
         streamName: {
-          $ifNull: ["$demostreams.streamName", 'nill']
+          $ifNull: ['$demostreams.streamName', 'nill'],
         },
         status: {
-          $ifNull: ["$demostreams.status", 'nill']
+          $ifNull: ['$demostreams.status', 'nill'],
         },
         otp_verifiyed_status: {
-          $ifNull: ["$demostreams.otp_verifiyed_status", 'nill']
+          $ifNull: ['$demostreams.otp_verifiyed_status', 'nill'],
         },
         location: 1,
         name: 1,
         userID: 1,
-
-      }
+      },
     },
     {
       $skip: 10 * page,
     },
     { $limit: 10 },
-  ])
+  ]);
   let next = await Demorequest.aggregate([
     { $sort: { dateISO: -1 } },
     {
       $skip: 10 * (page + 1),
     },
     { $limit: 10 },
-  ])
+  ]);
   return { demostream, next: next.length != 0 };
-}
+};
 
 const send_request_link = async (req) => {
   let transaction = req.query.transaction;
@@ -210,8 +224,8 @@ const send_request_link = async (req) => {
     createdBy: userID,
     _id: id,
     transaction: transaction,
-    tokenExp: moment().add(30, 'minutes'),
-    demoType: "seller"
+    tokenExp: moment().add(demorequest.type == 'demo' ? 30 : 45, 'minutes'),
+    demoType: 'seller',
   });
   // endTime: moment().add(15, 'minutes'),
   const payload = {
@@ -220,8 +234,13 @@ const send_request_link = async (req) => {
     type: 'demostream',
   };
   let valitity = jwt.sign(payload, secret, {
-    expiresIn: '30m', // Set token expiration to 30 minutes
+    expiresIn: '45m', // Set token expiration to 30 minutes
   });
+  if (demorequest.type == 'demo') {
+    valitity = jwt.sign(payload, secret, {
+      expiresIn: '30m', // Set token expiration to 30 minutes
+    });
+  }
   demostream.streamValitity = valitity;
   demostream.save();
   demorequest.streamID = demostream._id;
@@ -388,13 +407,227 @@ const send_request_link = async (req) => {
   console.log(await sms_send_seller(demostream._id, user.phoneNumber));
   // console.log(emailservice.sendDemolink(['bharathiraja996574@gmail.com', 'bharathi@uyarchi.com', 'mps.bharathiraja@gmail.com'], demostream._id));
   return { demopoat, demostream };
-}
-
-
-
-const send_livestream_link = async (req) => {
+};
+const get_demo_requests = async (req) => {
   let userID = req.userId;
-  const { phoneNumber, name, transaction } = req.body;
+  let stream = await Demostream.find({ createdBy: userID });
+
+  return stream;
+};
+const send_livestream_link_demo = async (req) => {
+  let userID = req.userId;
+  let seller = await Seller.findById(userID);
+  if (!seller) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Seller Not Fount');
+  }
+  let streamcount = await Demostream.find({ createdBy: userID }).count();
+  if (streamcount < 5) {
+    // Seller
+    const { transaction } = req.body;
+    let user = await Demoseller.findOne({ phoneNumber: seller.mobileNumber });
+    if (!user) {
+      user = await Demoseller.create({ phoneNumber: seller.mobileNumber, dateISO: moment(), name: seller.tradeName });
+    } else {
+      user.name = seller.tradeName;
+      user.save();
+    }
+    const id = generateUniqueID();
+    // let streamCount = await Demostream.find().count();
+    // console.log(moment().add(15, 'minutes').format('hh:mm a'));
+    let demostream = await Demostream.create({
+      userID: user._id,
+      dateISO: moment(),
+      phoneNumber: seller.mobileNumber,
+      name: seller.tradeName,
+      streamName: 'Demo Stream - ' + (parseInt(streamcount) + 1),
+      createdBy: userID,
+      _id: id,
+      transaction: transaction,
+      tokenExp: moment().add(30, 'minutes'),
+      type: 'demo',
+    });
+    // endTime: moment().add(15, 'minutes'),
+    const payload = {
+      _id: user._id,
+      streamID: demostream._id,
+      type: 'demostream',
+    };
+    let valitity = jwt.sign(payload, secret, {
+      expiresIn: '30m', // Set token expiration to 30 minutes
+    });
+
+    demostream.streamValitity = valitity;
+    demostream.save();
+    let product = await Product.find().limit(10);
+    let demopoat = [];
+    if (transaction == 'Without Transaction') {
+      product = await Product.find({ category: 'fde82b92-5caf-4539-af90-1fd15cfd389f' }).limit(10);
+    }
+    // return new Promise(async (resolve) => {
+    let element = product;
+    let streampost0 = await Demopost.create({
+      productTitle: element[0].productTitle,
+      streamID: demostream._id,
+      productID: element[0]._id,
+      image: element[0].image,
+      userID: user._id,
+      dateISO: moment(),
+      quantity: 1200,
+      pendingQTY: 1200,
+      marketPlace: 50,
+      offerPrice: 30,
+      minLots: 10,
+      incrementalLots: 5,
+    });
+    let streampost1 = await Demopost.create({
+      productTitle: element[1].productTitle,
+      streamID: demostream._id,
+      productID: element[1]._id,
+      image: element[1].image,
+      userID: user._id,
+      dateISO: moment(),
+      quantity: 1500,
+      pendingQTY: 1500,
+      marketPlace: 100,
+      offerPrice: 80,
+      minLots: 6,
+      incrementalLots: 5,
+    });
+    let streampost2 = await Demopost.create({
+      productTitle: element[2].productTitle,
+      streamID: demostream._id,
+      productID: element[2]._id,
+      image: element[2].image,
+      userID: user._id,
+      dateISO: moment(),
+      quantity: 2000,
+      pendingQTY: 2000,
+      marketPlace: 50,
+      offerPrice: 30,
+      minLots: 11,
+      incrementalLots: 5,
+    });
+    let streampost3 = await Demopost.create({
+      productTitle: element[3].productTitle,
+      streamID: demostream._id,
+      productID: element[3]._id,
+      image: element[3].image,
+      userID: user._id,
+      dateISO: moment(),
+      quantity: 1000,
+      pendingQTY: 1000,
+      marketPlace: 60,
+      offerPrice: 50,
+      minLots: 20,
+      incrementalLots: 5,
+    });
+    let streampost4 = await Demopost.create({
+      productTitle: element[4].productTitle,
+      streamID: demostream._id,
+      productID: element[4]._id,
+      image: element[4].image,
+      userID: user._id,
+      dateISO: moment(),
+      quantity: 1200,
+      pendingQTY: 1200,
+      marketPlace: 50,
+      offerPrice: 30,
+      minLots: 25,
+      incrementalLots: 5,
+    });
+    let streampost5 = await Demopost.create({
+      productTitle: element[5].productTitle,
+      streamID: demostream._id,
+      productID: element[5]._id,
+      image: element[5].image,
+      userID: user._id,
+      dateISO: moment(),
+      quantity: 500,
+      pendingQTY: 500,
+      marketPlace: 90,
+      offerPrice: 75,
+      minLots: 10,
+      incrementalLots: 5,
+    });
+    let streampost6 = await Demopost.create({
+      productTitle: element[6].productTitle,
+      streamID: demostream._id,
+      productID: element[6]._id,
+      image: element[6].image,
+      userID: user._id,
+      dateISO: moment(),
+      quantity: 2500,
+      pendingQTY: 2500,
+      marketPlace: 60,
+      offerPrice: 40,
+      minLots: 20,
+      incrementalLots: 5,
+    });
+
+    let streampost7 = await Demopost.create({
+      productTitle: element[7].productTitle,
+      streamID: demostream._id,
+      productID: element[7]._id,
+      image: element[7].image,
+      userID: user._id,
+      dateISO: moment(),
+      quantity: 2800,
+      pendingQTY: 2800,
+      marketPlace: 50,
+      offerPrice: 30,
+      minLots: 5,
+      incrementalLots: 5,
+    });
+    let streampost8 = await Demopost.create({
+      productTitle: element[8].productTitle,
+      streamID: demostream._id,
+      productID: element[8]._id,
+      image: element[8].image,
+      userID: user._id,
+      dateISO: moment(),
+      quantity: 600,
+      pendingQTY: 600,
+      marketPlace: 40,
+      offerPrice: 25,
+      minLots: 8,
+      incrementalLots: 5,
+    });
+    let streampost9 = await Demopost.create({
+      productTitle: element[9].productTitle,
+      streamID: demostream._id,
+      productID: element[9]._id,
+      image: element[9].image,
+      userID: user._id,
+      dateISO: moment(),
+      quantity: 700,
+      pendingQTY: 700,
+      marketPlace: 30,
+      offerPrice: 19,
+      minLots: 3,
+      incrementalLots: 5,
+    });
+    demopoat.push(streampost0);
+    demopoat.push(streampost1);
+    demopoat.push(streampost2);
+    demopoat.push(streampost3);
+    demopoat.push(streampost4);
+    demopoat.push(streampost5);
+    demopoat.push(streampost6);
+    demopoat.push(streampost7);
+    demopoat.push(streampost8);
+    demopoat.push(streampost9);
+    // if (demopoat.length == 10) {
+    await sms_send_seller(demostream._id, seller.mobileNumber);
+    // console.log(emailservice.sendDemolink(['bharathiraja996574@gmail.com', 'bharathi@uyarchi.com', 'mps.bharathiraja@gmail.com'], demostream._id));
+    return { demopoat, demostream };
+  } else {
+    return { message: 'Count Reachecd' };
+  }
+};
+
+const send_livestream_link_ryh = async (req) => {
+  let userID = req.userId;
+  const { phoneNumber, name, transaction, type } = req.body;
   let user = await Demoseller.findOne({ phoneNumber: phoneNumber });
   if (!user) {
     user = await Demoseller.create({ phoneNumber: phoneNumber, dateISO: moment(), name: name });
@@ -404,7 +637,6 @@ const send_livestream_link = async (req) => {
   }
   const id = generateUniqueID();
   let streamCount = await Demostream.find().count();
-  console.log(moment().add(15, 'minutes').format('hh:mm a'));
   let demostream = await Demostream.create({
     userID: user._id,
     dateISO: moment(),
@@ -414,17 +646,61 @@ const send_livestream_link = async (req) => {
     createdBy: userID,
     _id: id,
     transaction: transaction,
-    tokenExp: moment().add(30, 'minutes'),
+    tokenExp: type == moment().add(10, 'days'),
+    type: type,
   });
-  // endTime: moment().add(15, 'minutes'),
   const payload = {
     _id: user._id,
     streamID: demostream._id,
     type: 'demostream',
   };
   let valitity = jwt.sign(payload, secret, {
-    expiresIn: '30m', // Set token expiration to 30 minutes
+    expiresIn: '10d',
   });
+  demostream.streamValitity = valitity;
+  demostream.save();
+  await sms_send_seller(demostream._id, phoneNumber);
+
+  return { demostream };
+}
+
+const send_livestream_link = async (req) => {
+  let userID = req.userId;
+  const { phoneNumber, name, transaction, type } = req.body;
+  let user = await Demoseller.findOne({ phoneNumber: phoneNumber });
+  if (!user) {
+    user = await Demoseller.create({ phoneNumber: phoneNumber, dateISO: moment(), name: name });
+  } else {
+    user.name = name;
+    user.save();
+  }
+  const id = generateUniqueID();
+  let streamCount = await Demostream.find().count();
+  let demostream = await Demostream.create({
+    userID: user._id,
+    dateISO: moment(),
+    phoneNumber: phoneNumber,
+    name: name,
+    streamName: type == 'demo' ? 'Demo Stream - ' + (parseInt(streamCount) + 1) : 'Agriexpo2024-Meet',
+    createdBy: userID,
+    _id: id,
+    transaction: transaction,
+    tokenExp: type == 'demo' ? moment().add(30, 'minutes') : moment().add(10, 'days'),
+    type: type,
+  });
+  const payload = {
+    _id: user._id,
+    streamID: demostream._id,
+    type: 'demostream',
+  };
+  let valitity = jwt.sign(payload, secret, {
+    expiresIn: '10d',
+  });
+  if (type == 'demo') {
+    valitity = jwt.sign(payload, secret, {
+      expiresIn: '30m',
+    });
+  }
   demostream.streamValitity = valitity;
   demostream.save();
   let product = await Product.find().limit(10);
@@ -587,18 +863,62 @@ const send_livestream_link = async (req) => {
   demopoat.push(streampost9);
   // if (demopoat.length == 10) {
   await sms_send_seller(demostream._id, phoneNumber);
+
   // console.log(emailservice.sendDemolink(['bharathiraja996574@gmail.com', 'bharathi@uyarchi.com', 'mps.bharathiraja@gmail.com'], demostream._id));
+
   return { demopoat, demostream };
   // }
   // });
 };
 
+const send_livestream_link_assessment = async (req) => {
+  let userID = req.userId;
+  const { phoneNumber, name, transaction, type } = req.body;
+  let user = await Demoseller.findOne({ phoneNumber: phoneNumber });
+  if (!user) {
+    user = await Demoseller.create({ phoneNumber: phoneNumber, dateISO: moment(), name: name });
+  } else {
+    user.name = name;
+    user.candidate = req.body.candidate;
+    user.save();
+  }
+  const id = generateUniqueID();
+  let demostream = await Demostream.create({
+    userID: user._id,
+    dateISO: moment(),
+    phoneNumber: phoneNumber,
+    name: name,
+    streamName: "JOBS - WARMY - Assessment",
+    createdBy: userID,
+    _id: id,
+    transaction: transaction,
+    tokenExp: type == moment().add(1, 'days'),
+    type: type,
+    candidate: req.body.candidate,
+  });
+  const payload = {
+    _id: user._id,
+    streamID: demostream._id,
+    type: 'demostream',
+  };
+  let valitity = jwt.sign(payload, secret, {
+    expiresIn: '10d',
+  });
+
+  demostream.streamValitity = valitity;
+  demostream.save();
+  await sms_send_seller_assessment(demostream._id, phoneNumber);
+  return { demostream };
+};
+
 const verifyToken = async (req) => {
   console.log(req.query.id);
+
   const token = await Demostream.findById(req.query.id);
   if (!token) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Invalid Link');
   }
+  console.log(token.streamValitity)
   try {
     const payload = jwt.verify(token.streamValitity, 'demoStream');
   } catch (err) {
@@ -828,7 +1148,32 @@ const get_stream_details_check_golive = async (req) => {
   const agoraID = await AgoraAppId.findById(token.agoraID);
   const allowed_count = await DemostreamToken.find({ golive: true, status: 'resgistered', streamID: token._id }).count();
   await cloude_recording_stream(token._id, token.agoraID, token.endTime);
-  return { token, streampost, agora, agoraID, allowed_count };
+
+  const raise = await DemostreamToken.aggregate([
+    { $match: { $and: [{ streamID: { $eq: req.query.id } }, { raise_hands: { $eq: true } }] } },
+    {
+      $lookup: {
+        from: 'demobuyers',
+        localField: 'userID',
+        foreignField: '_id',
+        as: 'demobuyers',
+      },
+    },
+    { $unwind: '$demobuyers' },
+    {
+      $project: {
+        name: "$demobuyers.name",
+        phoneNumber: "$demobuyers.phoneNumber",
+        _id: 1,
+        date: 1,
+        dateISO: 1,
+        live: 1,
+        raise_hands: 1
+      }
+    }
+  ])
+
+  return { token, raise, streampost, agora, agoraID, allowed_count };
 };
 
 const go_live_stream = async (req) => {
@@ -846,8 +1191,124 @@ const go_live_stream = async (req) => {
   return { token, streampost };
 };
 
+const join_stream_candidate = async (req) => {
+  const { phoneNumber, name, type } = req.body;
+
+  const streamId = req.query.id;
+  const stream = await Demostream.findById(streamId);
+
+  if (!stream) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Stream not found');
+  }
+
+  if (stream.candidate != phoneNumber) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'You are Not a Valid User');
+  }
+
+  if (stream.condidate_join == true) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'This Number has already logged In');
+  }
+  let user = await Demobuyer.findOne({ phoneNumber: phoneNumber });
+
+  if (!user) {
+    user = await Demobuyer.create({ phoneNumber: phoneNumber, name: name, dateISO: moment(), type });
+  } else {
+    user.name = name;
+    user.type = type;
+    user.save();
+  }
+
+
+  let demotoken = await DemostreamToken.findOne({ userID: user._id, streamID: stream._id });
+  if (!demotoken) {
+    // const uid = await generateUid();
+    // const role = Agora.RtcRole.PUBLISHER;
+    // let expirationTimestamp = moment().add(15, 'minutes') / 1000;
+    // const token = await geenerate_rtc_token(stream._id, uid, role, expirationTimestamp, stream.agoraID);
+    demotoken = await DemostreamToken.create({
+      // expirationTimestamp: moment().add(15, 'minutes'),
+      streamID: streamId,
+      type: 'BUYER',
+      // uid: uid,
+      agoraID: stream.agoraID,
+      // token: token,
+      channel: streamId,
+      dateISO: moment(),
+      userID: user._id,
+      usertype: type
+    });
+  }
+  let register = await DemostreamToken.find({ streamID: demotoken.streamID, status: 'resgistered' }).count();
+  stream.condidate_join = true;
+  if (stream.type == 'demo') {
+    if (register < 5) {
+      demotoken.golive = true;
+      if (stream.status == 'Pending') {
+        stream.status = 'Ready';
+      }
+    } else {
+      demotoken.golive = false;
+    }
+  }
+  else if (stream.type == 'assessment') {
+    if (register < 5) {
+      demotoken.golive = true;
+      if (stream.status == 'Pending') {
+        stream.status = 'Ready';
+      }
+    } else {
+      demotoken.golive = false;
+    }
+  }
+  else {
+    if (register < 300) {
+      demotoken.golive = true;
+      if (stream.status == 'Pending') {
+        stream.status = 'Ready';
+      }
+    } else {
+      demotoken.golive = false;
+    }
+  }
+  stream.save();
+  demotoken.status = 'resgistered';
+  demotoken.save();
+  setTimeout(async () => {
+    register = await DemostreamToken.find({ streamID: demotoken.streamID, status: 'resgistered' }).count();
+    req.io.emit(demotoken.streamID + '_buyer_registor', { register });
+
+    let interviewvers = await DemostreamToken.aggregate([
+      { $match: { $and: [{ _id: { $eq: demotoken._id } }] } },
+      {
+        $lookup: {
+          from: 'demobuyers',
+          localField: 'userID',
+          foreignField: '_id',
+          as: 'demobuyers',
+        },
+      },
+      { $unwind: '$demobuyers' },
+
+      {
+        $project: {
+          name: "$demobuyers.name",
+          phoneNumber: "$demobuyers.phoneNumber",
+          _id: 1,
+          date: 1,
+          dateISO: 1,
+          live: 1
+        }
+      }
+    ])
+    if (interviewvers.length != 0) {
+      req.io.emit(demotoken.streamID + '_candidate', interviewvers[0]);
+    }
+  }, 300);
+  return demotoken;
+};
+
 const join_stream_buyer = async (req) => {
-  const { phoneNumber, name } = req.body;
+  const { phoneNumber, name, Institution_name, location } = req.body;
 
   const streamId = req.query.id;
 
@@ -857,6 +1318,8 @@ const join_stream_buyer = async (req) => {
     user = await Demobuyer.create({ phoneNumber: phoneNumber, name: name, dateISO: moment() });
   } else {
     user.name = name;
+    user.Institution_name = Institution_name;
+    user.location = location;
     user.save();
   }
 
@@ -885,14 +1348,38 @@ const join_stream_buyer = async (req) => {
   }
 
   let register = await DemostreamToken.find({ streamID: demotoken.streamID, status: 'resgistered' }).count();
-  if (register < 5) {
-    demotoken.golive = true;
-    if (stream.status == 'Pending') {
-      stream.status = 'Ready';
-      stream.save();
+  if (stream.type == 'demo') {
+    if (register < 5) {
+      demotoken.golive = true;
+      if (stream.status == 'Pending') {
+        stream.status = 'Ready';
+        stream.save();
+      }
+    } else {
+      demotoken.golive = false;
     }
-  } else {
-    demotoken.golive = false;
+  }
+  else if (stream.type == 'assessment') {
+    if (register < 5) {
+      demotoken.golive = true;
+      if (stream.status == 'Pending') {
+        stream.status = 'Ready';
+        stream.save();
+      }
+    } else {
+      demotoken.golive = false;
+    }
+  }
+  else {
+    if (register < 300) {
+      demotoken.golive = true;
+      if (stream.status == 'Pending') {
+        stream.status = 'Ready';
+        stream.save();
+      }
+    } else {
+      demotoken.golive = false;
+    }
   }
 
   demotoken.status = 'resgistered';
@@ -901,7 +1388,37 @@ const join_stream_buyer = async (req) => {
   setTimeout(async () => {
     register = await DemostreamToken.find({ streamID: demotoken.streamID, status: 'resgistered' }).count();
     req.io.emit(demotoken.streamID + '_buyer_registor', { register });
+
+    let interviewvers = await DemostreamToken.aggregate([
+      { $match: { $and: [{ _id: { $eq: demotoken._id } }] } },
+      {
+        $lookup: {
+          from: 'demobuyers',
+          localField: 'userID',
+          foreignField: '_id',
+          as: 'demobuyers',
+        },
+      },
+      { $unwind: '$demobuyers' },
+
+      {
+        $project: {
+          name: "$demobuyers.name",
+          phoneNumber: "$demobuyers.phoneNumber",
+          _id: 1,
+          date: 1,
+          dateISO: 1,
+          live: 1
+
+        }
+      }
+    ])
+    if (interviewvers.length != 0) {
+      req.io.emit(demotoken.streamID + '_interviewer', interviewvers[0]);
+    }
+
   }, 300);
+  console.log(demotoken.streamID + '_buyer_registor', 987887678678);
   return demotoken;
 };
 
@@ -910,10 +1427,10 @@ const buyer_go_live_stream = async (req) => {
   if (!demotoken) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Stream not found');
   }
+  const stream = await Demostream.findById(demotoken.streamID);
   if (demotoken.token == null) {
-    const stream = await Demostream.findById(demotoken.streamID);
     const uid = await generateUid();
-    const role = Agora.RtcRole.PUBLISHER;
+    const role = Agora.RtcRole.SUBSCRIBER;
     let expirationTimestamp = stream.endTime / 1000;
     const token = await geenerate_rtc_token(stream._id, uid, role, expirationTimestamp, stream.agoraID);
     demotoken.expirationTimestamp = stream.endTime;
@@ -921,8 +1438,95 @@ const buyer_go_live_stream = async (req) => {
     demotoken.token = token;
     demotoken.save();
   }
+  if (stream.type == 'assessment') {
+    await cloude_recording_stream(stream._id, stream.agoraID, stream.endTime);
+  }
   return demotoken;
 };
+
+
+const get_interviewer_list = async (req) => {
+  let id = req.query.id;
+
+  let interviewvers = await DemostreamToken.aggregate([
+    { $match: { $and: [{ streamID: { $eq: id } }, { usertype: { $ne: "Candidate" } }] } },
+    {
+      $lookup: {
+        from: 'demobuyers',
+        localField: 'userID',
+        foreignField: '_id',
+        as: 'demobuyers',
+      },
+    },
+    { $unwind: '$demobuyers' },
+
+    {
+      $project: {
+        name: "$demobuyers.name",
+        phoneNumber: "$demobuyers.phoneNumber",
+        _id: 1,
+        date: 1,
+        dateISO: 1,
+        live: 1
+
+      }
+    }
+
+
+  ])
+  let candidate = await DemostreamToken.aggregate([
+    { $match: { $and: [{ streamID: { $eq: id } }, { usertype: { $eq: "Candidate" } }] } },
+    {
+      $lookup: {
+        from: 'demobuyers',
+        localField: 'userID',
+        foreignField: '_id',
+        as: 'demobuyers',
+      },
+    },
+    { $unwind: '$demobuyers' },
+
+    {
+      $project: {
+        name: "$demobuyers.name",
+        phoneNumber: "$demobuyers.phoneNumber",
+        _id: 1,
+        date: 1,
+        dateISO: 1,
+        live: 1
+
+      }
+    }
+
+  ])
+
+  return { interviewvers, candidate }
+};
+
+
+const join_live = async (req) => {
+  let token = await DemostreamToken.findByIdAndUpdate({ _id: req.query.id }, { live: true }, { new: true });
+  console.log(token._id + "_jion_now")
+  req.io.emit(token._id + "_jion_now", token);
+
+  return token;
+}
+
+const end_live = async (req) => {
+  let token = await DemostreamToken.findByIdAndUpdate({ _id: req.query.id }, { live: false }, { new: true });
+  console.log(token._id + "_jion_now")
+  req.io.emit(token._id + "_jion_now", token);
+  return token;
+
+}
+
+const leave_admin_call = async (req) => {
+  let token = await DemostreamToken.findByIdAndUpdate({ _id: req.query.id }, { live: false }, { new: true });
+  console.log(token._id + "_jion_now")
+  req.io.emit(token._id + "_jion_now", token);
+  return token;
+
+}
 
 const get_buyer_token = async (req) => {
   let join_token = req.query.id;
@@ -1324,10 +1928,20 @@ const end_stream = async (req) => {
 const go_live = async (req) => {
   const uid = await generateUid();
   const role = Agora.RtcRole.PUBLISHER;
-  let expirationTimestamp = moment().add(15, 'minutes') / 1000;
   let demostream = await Demostream.findById(req.query.id);
+  let expirationTimestamp;
   if (demostream.agoraID == null) {
-    let agoraID = await agoraToken.token_assign(105, demostream._id, 'demo');
+    let agoraID = await agoraToken.token_assign(6000, demostream._id, 'demo');
+    expirationTimestamp = moment().add(30, 'minutes') / 1000;
+    if (demostream.type == 'demo') {
+      agoraID = await agoraToken.token_assign(105, demostream._id, 'demo');
+      expirationTimestamp = moment().add(15, 'minutes') / 1000;
+    }
+    if (demostream.type == 'assessment') {
+      agoraID = await agoraToken.token_assign(330, demostream._id, 'demo');
+      expirationTimestamp = moment().add(30, 'minutes') / 1000;
+    }
+
     if (agoraID) {
       demostream.agoraID = agoraID.element._id;
     }
@@ -1337,7 +1951,6 @@ const go_live = async (req) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Invalid Link');
   }
   let demotoken = await DemostreamToken.findOne({ type: 'HOST', streamID: demostream._id });
-
   if (!demotoken) {
     demotoken = await DemostreamToken.create({
       expirationTimestamp: expirationTimestamp * 1000,
@@ -1357,8 +1970,6 @@ const go_live = async (req) => {
     req.io.emit(demostream._id + 'stream_on_going', demostream);
   }
 
-  console.log(demostream.agoraID);
-
   await cloude_recording_stream(demostream._id, demostream.agoraID, demostream.endTime);
   return demotoken;
 };
@@ -1367,7 +1978,7 @@ const get_DemoStream_By_Admin = async (page, id) => {
   let currentDate = new Date().getTime();
   const data = await Demostream.aggregate([
     { $sort: { dateISO: -1 } },
-    { $match: { createdBy: id, demoType: { $ne: "seller" } } },
+    { $match: { createdBy: id, demoType: { $ne: 'seller' } } },
     {
       $addFields: {
         endtrue: { $ifNull: ['$endTime', false] },
@@ -1436,7 +2047,6 @@ const get_DemoStream_By_Admin = async (page, id) => {
 
   return { data: data, total: total.length };
 };
-
 
 const manageDemoStream = async (page) => {
   const data = await Demostream.aggregate([
@@ -2082,13 +2692,16 @@ const recording_start = async (id) => {
     let agoraToken = await AgoraAppId.findById(str.agoraID);
     const Authorization = `Basic ${Buffer.from(agoraToken.Authorization.replace(/\s/g, '')).toString('base64')}`;
     if (token.recoredStart == 'acquire') {
-      console.log("start", agoraToken, token)
+      console.log('start', agoraToken, token);
       const resource = token.resourceId;
       //console.log(resource)
       //console.log(token)
       const mode = 'mix';
       const start = await axios.post(
-        `https://api.agora.io/v1/apps/${agoraToken.appID.replace(/\s/g, '')}/cloud_recording/resourceid/${resource}/mode/${mode}/start`,
+        `https://api.agora.io/v1/apps/${agoraToken.appID.replace(
+          /\s/g,
+          ''
+        )}/cloud_recording/resourceid/${resource}/mode/${mode}/start`,
         {
           cname: token.chennel,
           uid: token.Uid.toString(),
@@ -2149,11 +2762,14 @@ const recording_query = async (id, agoraToken) => {
   const mode = 'mix';
   // //console.log(`https://api.agora.io/v1/apps/${appID}/cloud_recording/resourceid/${resource}/sid/${sid}/mode/${mode}/query`);
   const query = await axios.get(
-    `https://api.agora.io/v1/apps/${agoraToken.appID.replace(/\s/g, '')}/cloud_recording/resourceid/${resource}/sid/${sid}/mode/${mode}/query`,
+    `https://api.agora.io/v1/apps/${agoraToken.appID.replace(
+      /\s/g,
+      ''
+    )}/cloud_recording/resourceid/${resource}/sid/${sid}/mode/${mode}/query`,
     { headers: { Authorization } }
   );
-  console.log(query.data)
-  console.log(query.data.serverResponse.fileList)
+  console.log(query.data);
+  console.log(query.data.serverResponse.fileList);
   if (query.data.serverResponse.fileList.length > 0) {
     token.videoLink = query.data.serverResponse.fileList[0].fileName;
     token.videoLvideoLink_objink = query.data.serverResponse.fileList;
@@ -2568,13 +3184,248 @@ const issueResolve = async (id, body) => {
   return issue;
 };
 
+const turn_on_chat = async (req) => {
+  let stream = await Demostream.findById(req.query.id);
+  stream.chat = !stream.chat;
+  stream.save();
+  req.io.emit(req.query.id + '_enable_chat', { chat: stream.chat });
+
+  return stream;
+};
+
+const getDatas = async () => {
+  let stream = await DemostreamToken.aggregate([
+    {
+      $match: { channel: '30fa154efe' },
+    },
+    {
+      $lookup: {
+        from: 'demobuyers',
+        localField: 'userID',
+        foreignField: '_id',
+        pipeline: [
+          {
+            $addFields: {
+              id: {
+                $convert: {
+                  input: '$phoneNumber',
+                  to: 'string',
+                  onError: 0,
+                },
+              },
+            },
+          },
+          {
+            $lookup: {
+              from: 'climbeventregisters',
+              localField: 'id',
+              foreignField: 'mobileNumber',
+              as: 'asas',
+            },
+          },
+        ],
+        as: 'demoBuyers',
+      },
+    },
+    {
+      $unwind: {
+        path: '$demoBuyers',
+      },
+    },
+  ]);
+  return stream;
+};
+
+const toggle_raise_hand = async (req) => {
+  let stream = await Demostream.findById(req.query.id);
+  stream.raise_hands = !stream.raise_hands;
+  stream.save();
+  req.io.emit(req.query.id + '_enable_raise_hands', { raise_hands: stream.raise_hands });
+
+
+
+
+  return stream;
+};
+
+
+const raise_my_hands = async (req) => {
+  let stream = await DemostreamToken.findById(req.query.id);
+  if (!stream) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Demo Request Not Found');
+  }
+
+  stream.raise_hands = !stream.raise_hands;
+  stream.save();
+
+  stream = await DemostreamToken.aggregate([
+    { $match: { $and: [{ _id: { $eq: stream._id } }] } },
+    {
+      $lookup: {
+        from: 'demobuyers',
+        localField: 'userID',
+        foreignField: '_id',
+        as: 'demobuyers',
+      },
+    },
+    { $unwind: '$demobuyers' },
+    {
+      $addFields: {
+        name: "$demobuyers.name",
+        phoneNumber: "$demobuyers.phoneNumber",
+        raise_hands: stream.raise_hands
+      },
+    },
+  ])
+
+  req.io.emit(stream[0].streamID + '_join_raise_hands', stream[0]);
+
+  return stream[0];
+};
+
+const accept_raise_hands = async (req) => {
+  let stream = await DemostreamToken.findById(req.query.id);
+
+  if (!stream) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Demo Token Not Found');
+  }
+  let strm = await Demostream.findById(stream.streamID);
+
+  if (!strm) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Demo Stream Not Found');
+  }
+  strm.raiseUser = stream._id;
+  strm.save();
+  req.io.emit(stream._id + '_accept_stream', strm);
+
+  return strm;
+
+}
+
+const end_raise_hands = async (req) => {
+  let stream = await DemostreamToken.findById(req.query.id);
+
+  if (!stream) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Demo Token Not Found');
+  }
+  let strm = await Demostream.findById(stream.streamID);
+
+  if (!strm) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Demo Stream Not Found');
+  }
+  strm.raiseUser = null;
+  strm.save();
+  req.io.emit(stream._id + '_accept_stream', strm);
+  return strm;
+
+}
+
+const leave_raise_hands = async (req) => {
+  let stream = await DemostreamToken.findById(req.query.id);
+
+  if (!stream) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Demo Token Not Found');
+  }
+  let strm = await Demostream.findById(stream.streamID);
+
+  if (!strm) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Demo Stream Not Found');
+  }
+  strm.raiseUser = null;
+  strm.save();
+  req.io.emit(strm._id + '_accept_stream', strm);
+  stream.raise_hands = false;
+  stream.save();
+
+  stream = await DemostreamToken.aggregate([
+    { $match: { $and: [{ _id: { $eq: stream._id } }] } },
+    {
+      $lookup: {
+        from: 'demobuyers',
+        localField: 'userID',
+        foreignField: '_id',
+        as: 'demobuyers',
+      },
+    },
+    { $unwind: '$demobuyers' },
+    {
+      $addFields: {
+        name: "$demobuyers.name",
+        phoneNumber: "$demobuyers.phoneNumber",
+        raise_hands: stream.raise_hands
+      },
+    },
+  ])
+
+  req.io.emit(stream[0].streamID + '_join_raise_hands', stream[0]);
+
+  return strm;
+
+}
+
+const stop_recording = async (req) => {
+  let token = await DemostreamToken.findOne({ channel: req.query.id, type: 'CloudRecording', recoredStart: { $eq: "query" } }).sort({ created: -1 });
+  if (token) {
+    let str = await Demostream.findById(token.streamID);
+    let agoraToken = await AgoraAppId.findById(str.agoraID);
+    const Authorization = `Basic ${Buffer.from(agoraToken.Authorization.replace(/\s/g, '')).toString(
+      'base64'
+    )}`;
+    if (token.recoredStart == 'query') {
+      const resource = token.resourceId;
+      const sid = token.sid;
+      const mode = 'mix';
+
+      const stop = await axios.post(
+        `https://api.agora.io/v1/apps/${agoraToken.appID}/cloud_recording/resourceid/${resource}/sid/${sid}/mode/${mode}/stop`,
+        {
+          cname: token.chennel,
+          uid: token.Uid.toString(),
+          clientRequest: {},
+        },
+        {
+          headers: {
+            Authorization,
+          },
+        }
+      ).then((res) => {
+        return res;
+      }).catch((err) => {
+
+        throw new ApiError(httpStatus.NOT_FOUND, 'Cloud Recording Stop:' + err.message);
+      });
+
+      token.recoredStart = 'stop';
+      if (stop.data.serverResponse.fileList.length == 2) {
+        token.videoLink = stop.data.serverResponse.fileList[0].fileName;
+        token.videoLink_array = stop.data.serverResponse.fileList;
+        let m3u8 = stop.data.serverResponse.fileList[0].fileName;
+        token.videoLink_mp4 = m3u8;
+      }
+      token.save();
+      return stop;
+    }
+    else {
+      return { message: 'Already Stoped' };
+    }
+  }
+  else {
+    return { message: 'Clound not Found' };
+  }
+}
+
+
 module.exports = {
   send_livestream_link,
+  send_livestream_link_ryh,
+  send_livestream_link_demo,
+  send_livestream_link_assessment,
   verifyToken,
   get_stream_details_check,
   get_stream_details_check_golive,
   go_live_stream,
   join_stream_buyer,
+  join_stream_candidate,
   get_stream_verify_buyer,
   get_buyer_token,
   stream_register_buyer,
@@ -2616,5 +3467,18 @@ module.exports = {
   issueResolve,
   demorequest,
   get_demo_request,
-  send_request_link
+  send_request_link,
+  get_demo_requests,
+  turn_on_chat,
+  getDatas,
+  get_interviewer_list,
+  join_live,
+  end_live,
+  leave_admin_call,
+  toggle_raise_hand,
+  raise_my_hands,
+  accept_raise_hands,
+  end_raise_hands,
+  leave_raise_hands,
+  stop_recording
 };

@@ -172,7 +172,6 @@ const create_purchase_plan_addon = async (req) => {
           paymentStatus: collectedstatus,
           order_id: payment.order_id,
           noOfParticipants: plan.numberOfParticipants,
-          Duration: plan.Duration,
         },
         ...req.body.PaymentDatails,
       });
@@ -458,6 +457,7 @@ const get_all_purchasePlans = async (req) => {
     {
       $unwind: '$streamplans',
     },
+
     {
       $project: {
         _id: 1,
@@ -539,9 +539,6 @@ const create_PurchasePlan_EXpo = async (planId, userId, ccavenue, gst) => {
     raisehandcontrol: findPlan.raisehandcontrol,
     totalAmount: findPlan.offer_price + gst,
     gst: gst,
-    Duration: findPlan.Duration,
-    numberofStream: findPlan.numberofStream,
-
   };
   console.log(data);
   const creations = await purchasePlan.create(data);
@@ -590,8 +587,6 @@ const create_PurchasePlan_EXpo_Admin = async (body, userId) => {
     TimeType: findPlan.TimeType,
     raisehandcontrol: findPlan.raisehandcontrol,
     Type: body.Type,
-    Duration: findPlan.Duration,
-    numberofStream: findPlan.numberofStream,
   };
   const creations = await purchasePlan.create(data);
   // await Purchased_Message(findUser.tradeName, findPlan.planName, findUser.mobileNumber);
@@ -944,20 +939,220 @@ const getPlanDetailsByUser = async (userId) => {
 };
 
 const getPlanes_Request_Streams = async (userId) => {
+  let date_now = new Date().getTime();
   let val = await purchasePlan.aggregate([
     {
       $match: { status: { $in: ['Activated'] }, suppierId: userId },
     },
-    // {
-    //   $project: {
-    //     _id: 1,
-    //     active: 1,
-    //     status: 1,
-    //     planName: 1,
-    //     transaction: 1,
-    //     PostCount: 1,
-    //   },
-    // },
+    {
+      $lookup: {
+        from: 'slotseperations',
+        localField: '_id',
+        foreignField: 'PlanId',
+        pipeline: [
+          {
+            $match: {
+              SlotType: 'Normal',
+            },
+          },
+          {
+            $addFields: {
+              sumval: { $add: ['$usedSlots', '$Slots'] },
+            },
+          },
+          {
+            $group: { _id: null, total: { $sum: '$sumval' } },
+          },
+        ],
+        as: 'NormalSlot',
+      },
+    },
+    { $unwind: { preserveNullAndEmptyArrays: true, path: '$NormalSlot' } },
+    {
+      $lookup: {
+        from: 'slotseperations',
+        localField: '_id',
+        foreignField: 'PlanId',
+        pipeline: [
+          {
+            $match: {
+              SlotType: 'Peak',
+            },
+          },
+          {
+            $addFields: {
+              sumval: { $add: ['$usedSlots', '$Slots'] },
+            },
+          },
+          {
+            $group: { _id: null, total: { $sum: '$sumval' } },
+          },
+        ],
+        as: 'PeakSlot',
+      },
+    },
+    {
+      $unwind: {
+        preserveNullAndEmptyArrays: true,
+        path: '$PeakSlot',
+      },
+    },
+    {
+      $lookup: {
+        from: 'slotseperations',
+        localField: '_id',
+        foreignField: 'PlanId',
+        pipeline: [
+          {
+            $match: {
+              SlotType: 'Exclusive',
+            },
+          },
+          {
+            $addFields: {
+              sumval: { $add: ['$usedSlots', '$Slots'] },
+            },
+          },
+          {
+            $group: { _id: null, total: { $sum: '$sumval' } },
+          },
+        ],
+
+        as: 'ExclusiveSlot',
+      },
+    },
+    { $unwind: { preserveNullAndEmptyArrays: true, path: '$ExclusiveSlot' } },
+    {
+      $lookup: {
+        from: 'slotbookings',
+        localField: '_id',
+        foreignField: 'PlanId',
+        pipeline: [{ $match: { slotType: 'Normal' } }],
+        as: 'BookedSlotsNormal',
+      },
+    },
+    {
+      $lookup: {
+        from: 'slotbookings',
+        localField: '_id',
+        foreignField: 'PlanId',
+        pipeline: [{ $match: { slotType: 'Peak' } }],
+        as: 'BookedSlotsPeak',
+      },
+    },
+    {
+      $lookup: {
+        from: 'slotbookings',
+        localField: '_id',
+        foreignField: 'PlanId',
+        pipeline: [{ $match: { slotType: 'Exclusive' } }],
+        as: 'BookedSlotsExclusive',
+      },
+    },
+    {
+      $lookup: {
+        from: 'slotbookings',
+        localField: '_id',
+        foreignField: 'PlanId',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'slots',
+              localField: 'slotId',
+              pipeline: [
+                {
+                  $addFields: {
+                    slotExpire: {
+                      $cond: { if: { $lt: ['$end', date_now] }, then: true, else: false },
+                    },
+                  },
+                },
+              ],
+              foreignField: '_id',
+              as: 'slots',
+            },
+          },
+          {
+            $unwind: {
+              preserveNullAndEmptyArrays: true,
+              path: '$slots',
+            },
+          },
+          {
+            $addFields: {
+              slotExpire: "$slots.slotExpire",
+            },
+          },
+          { $match: { $and: [{ slotExpire: { $eq: false } }] } },
+          {
+            $group: {
+              _id: null,
+              count: { $sum: 1 }
+            }
+          }
+        ],
+        as: 'slotbookings',
+      },
+    },
+    {
+      $unwind: {
+        preserveNullAndEmptyArrays: true,
+        path: '$slotbookings',
+      },
+    },
+    {
+      $addFields: {
+        slotCount: { $ifNull: ["$slotbookings.count", 0] },
+      },
+    },
+    { $match: { $and: [{ slotCount: { $ne: 0 } }] } },
+    {
+      $project: {
+        _id: 1,
+        active: 1,
+        status: 1,
+        planName: 1,
+        Normal: { $ifNull: ['$NormalSlot.total', 0] },
+        Peak: { $ifNull: ['$PeakSlot.total', 0] },
+        Exclusive: { $ifNull: ['$ExclusiveSlot.total', 0] },
+        NormalSlots: { $ifNull: [{ $size: '$BookedSlotsNormal' }, 0] },
+        PeakSlots: { $ifNull: [{ $size: '$BookedSlotsPeak' }, 0] },
+        ExclusiveSlots: { $ifNull: [{ $size: '$BookedSlotsExclusive' }, 0] },
+        transaction: 1,
+        PostCount: 1,
+        slotbookings: "$slotbookings"
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        active: 1,
+        status: 1,
+        planName: 1,
+        Normal: 1,
+        Peak: 1,
+        Exclusive: 1,
+        NormalSlots: 1,
+        PeakSlots: 1,
+        ExclusiveSlots: 1,
+        isMatching: {
+          $and: [
+            { $eq: ['$Normal', '$NormalSlots'] },
+            { $eq: ['$Peak', '$PeakSlots'] },
+            { $eq: ['$Exclusive', '$ExclusiveSlots'] },
+          ],
+        },
+        transaction: 1,
+        PostCount: 1,
+        slotbookings: 1
+
+      },
+    },
+    {
+      $match: {
+        isMatching: true,
+      },
+    },
   ]);
   return val;
 };

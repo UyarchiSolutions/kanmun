@@ -25,7 +25,7 @@ const createB2bUsers = catchAsync(async (req, res) => {
 
 const B2bUsersLogin = catchAsync(async (req, res) => {
   const users = await b2bUsersService.UsersLogin(req.body);
-  const time = await timeline.login_timeline({ userId: users._id, InTime: moment(), Device: req.deviceInfo })
+  const time = await timeline.login_timeline({ userId: users._id, InTime: moment(), Device: req.deviceInfo, userName: users.name, mobileNumber: users.phoneNumber })
   users.timeline = time._id;
   const tokens = await tokenService.generateAuthTokens(users);
   time.Token = tokens.saveToken._id;
@@ -219,6 +219,11 @@ const get_Tele_Sales = catchAsync(async (req, res) => {
   res.send(data);
 });
 
+const get_b2buser_eligible = catchAsync(async (req, res) => {
+  const data = await b2bUsersService.get_b2buser_eligible(req.body);
+  res.send(data);
+});
+
 module.exports = {
   createB2bUsers,
   getsalesExecuteRolesUsers,
@@ -257,4 +262,5 @@ module.exports = {
   chatBotOtp,
   chatBotOtpVerify,
   get_Tele_Sales,
+  get_b2buser_eligible
 };

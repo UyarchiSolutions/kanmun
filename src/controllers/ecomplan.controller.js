@@ -80,7 +80,10 @@ const get_all_Post_with_page = catchAsync(async (req, res) => {
     value = await Ecomserive.get_all_Post_with_page(req, status);
   }
   if (status == 'assigned') {
-    value = await Ecomserive.get_all_Post_with_page_assigned(req);
+    value = await Ecomserive.get_all_Post_with_page_assigned(req, 'assigned');
+  }
+  if (status == 'timeout') {
+    value = await Ecomserive.get_all_Post_with_page_assigned(req, 'timeout');
   }
   if (status == 'live') {
     value = await Ecomserive.get_all_Post_with_page_live(req);
@@ -128,6 +131,10 @@ const remove_one_post = catchAsync(async (req, res) => {
   res.send(value);
 });
 
+const post_show_toggle = catchAsync(async (req, res) => {
+  const value = await Ecomserive.post_show_toggle(req);
+  res.send(value);
+});
 const create_stream_one = catchAsync(async (req, res) => {
   const value = await Ecomserive.create_stream_one(req);
   res.send(value);
@@ -175,7 +182,7 @@ const get_all_stream = catchAsync(async (req, res) => {
 });
 
 
-const remove_post_stream= catchAsync(async (req, res) => {
+const remove_post_stream = catchAsync(async (req, res) => {
   const value = await Ecomserive.remove_post_stream(req);
   res.send(value);
 });
@@ -266,6 +273,12 @@ const remove_stream = catchAsync(async (req, res) => {
   res.send(value);
 });
 
+const toggle_stream = catchAsync(async (req, res) => {
+  //console.log('sdas');
+  const value = await Ecomserive.toggle_stream(req);
+  res.send(value);
+});
+
 const remove_stream_admin = catchAsync(async (req, res) => {
   //console.log('sdas');
   const value = await Ecomserive.remove_stream_admin(req);
@@ -284,11 +297,31 @@ const go_live_stream_host = catchAsync(async (req, res) => {
   res.send(value);
 });
 
+
+const front_end_code = catchAsync(async (req, res) => {
+  //console.log('sdas');
+  const value = await Ecomserive.front_end_code(req, req.userId);
+  res.send(value);
+});
+const go_live_stream_host_details = catchAsync(async (req, res) => {
+  //console.log('sdas');
+  const value = await Ecomserive.go_live_stream_host_details(req, req.userId);
+  res.send(value);
+});
+
 const get_subhost_token = catchAsync(async (req, res) => {
   //console.log('sdas');
   const value = await Ecomserive.get_subhost_token(req, req.userId);
   res.send(value);
 });
+
+
+const get_subhost_token_details = catchAsync(async (req, res) => {
+  //console.log('sdas');
+  const value = await Ecomserive.get_subhost_token_details(req, req.userId);
+  res.send(value);
+});
+
 
 const go_live_stream_host_subhost = catchAsync(async (req, res) => {
   //console.log('sdas');
@@ -666,6 +699,11 @@ const upload_s3_stream_video = catchAsync(async (req, res) => {
   const data = await Ecomserive.upload_s3_stream_video(req);
   res.send(data);
 });
+
+const upload_s3_shorts_video = catchAsync(async (req, res) => {
+  const data = await Ecomserive.upload_s3_shorts_video(req);
+  res.send(data);
+});
 const upload_s3_stream_video_admin = catchAsync(async (req, res) => {
   const data = await Ecomserive.upload_s3_stream_video_admin(req);
   res.send(data);
@@ -752,7 +790,10 @@ const purchesPlane_exhibitor = catchAsync(async (req, res) => {
   const data = await Ecomserive.purchesPlane_exhibitor(req, res);
   res.send(data);
 });
-
+const purchesPlane_mexhibitor = catchAsync(async (req, res) => {
+  const data = await Ecomserive.purchesPlane_mexhibitor(req, res);
+  res.send(data);
+});
 const get_Saved_Product = catchAsync(async (req, res) => {
   let userId = req.shopId;
   const data = await Ecomserive.get_Saved_Product(userId);
@@ -761,6 +802,11 @@ const get_Saved_Product = catchAsync(async (req, res) => {
 
 const search_product_list = catchAsync(async (req, res) => {
   const data = await Ecomserive.search_product_list(req);
+  res.send(data);
+});
+
+const get_shorts_all = catchAsync(async (req, res) => {
+  const data = await Ecomserive.get_shorts_all(req);
   res.send(data);
 });
 
@@ -807,6 +853,7 @@ module.exports = {
   allot_stream_subhost,
   cancel_stream,
   remove_stream,
+  toggle_stream,
   get_completed_stream,
   get_completed_stream_byid,
   get_completed_stream_buyer,
@@ -886,6 +933,7 @@ module.exports = {
   get_Live_Streams,
   update_pump_views,
   upload_s3_stream_video,
+  upload_s3_shorts_video,
   upload_s3_stream_video_admin,
   only_chat_join,
   only_chat_get,
@@ -910,8 +958,14 @@ module.exports = {
 
   // pruchese plan
   purchesPlane_exhibitor,
+  purchesPlane_mexhibitor,
   get_Saved_Product,
   remove_stream_admin,
   search_product_list,
-  remove_post_stream
+  remove_post_stream,
+  go_live_stream_host_details,
+  get_subhost_token_details,
+  front_end_code,
+  post_show_toggle,
+  get_shorts_all
 };

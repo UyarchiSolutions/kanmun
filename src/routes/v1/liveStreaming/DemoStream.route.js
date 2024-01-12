@@ -8,7 +8,19 @@ const authorization = require('../../../controllers/tokenVerify.controller');
 const router = express.Router();
 const demostream = require('../../../controllers/liveStreaming/DemoStream.controller');
 
+const { SellerAuth } = require('../../../controllers/sellerAuth.controller');
+
 router.route('/send/livestream/link').post(authorization, demostream.send_livestream_link);
+router.route('/demo/request').post(SellerAuth, demostream.send_livestream_link_demo);
+router.route('/chat/turn/on').get(demostream.turn_on_chat);
+router.route('/join_live').get(demostream.join_live);
+router.route('/end_live').get(demostream.end_live);
+
+router.route('/leave/admin').get(demostream.leave_admin_call);
+
+router.route('/interviewer/list').get(demostream.get_interviewer_list);
+
+router.route('/demo/request').get(SellerAuth, demostream.get_demo_requests);
 router.route('/get/livestream/details').get(demostream.get_stream_details);
 router.route('/verify/token/stream').get(demostream.get_stream_verify);
 router.route('/verify/token/stream/buyer').get(demostream.get_stream_verify_buyer);
@@ -16,6 +28,7 @@ router.route('/get/stream/details').get(demostream.get_stream_details_check);
 router.route('/get/stream/details/golive').get(demostream.get_stream_details_check_golive);
 router.route('/go/live/stream').get(demostream.get_stream_details_check);
 router.route('/join/stream/buyer').post(demostream.join_stream_buyer);
+router.route('/join/stream/candidate').post(demostream.join_stream_candidate);
 router.route('/get/buyer/token').get(demostream.get_buyer_token);
 // router.route('/register/buyer/stream').get(demostream.stream_register_buyer);
 router.route('/get/get_add_to_cart').get(demostream.get_get_add_to_cart);
@@ -52,15 +65,27 @@ router.route('/TechIssue/:id').put(demostream.update_TechIssue);
 router.route('/TechIssue/pagination/:page').get(demostream.get_TechIssue);
 router.route('/get/IssuesWith/Pagination/:page').get(demostream.getIssuesWithPagination);
 router.route('/issueResolve/:id').put(demostream.issueResolve);
-
 router.route('/get/completed/stream').get(demostream.get_completed_stream);
-
-
 router.route('/post/request/demo').post(demostream.demorequest);
 router.route('/get/request/demo').get(authorization, demostream.get_demo_request);
 router.route('/send/request/demo').post(authorization, demostream.send_request_link);
-
+router.route('/getDatas').get(demostream.getDatas);
 
 // router.route('').get(demostream.send_sms_now);
+
+
+
+
+router.route('/toggle/raise/hands').get(demostream.toggle_raise_hand);
+router.route('/raise/my/hands').get(demostream.raise_my_hands);
+router.route('/accept/raise/hands').get(demostream.accept_raise_hands);
+router.route('/end/raise/hands').get(demostream.end_raise_hands);
+
+router.route('/leave/raise/hands').get(demostream.leave_raise_hands);
+
+
+
+router.route('/stop/recording').get(demostream.stop_recording);
+
 
 module.exports = router;

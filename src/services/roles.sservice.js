@@ -85,17 +85,19 @@ const updateRolesById = async (roleId, updateBody) => {
   } catch (e) {
     print(e);
   }
-  updateBody.forEach(async (e) => {
+  updateBody.menus.forEach(async (e) => {
     //console.log(e)
-    await MenueAssign.create({
-      rolesId: roleId,
-      menuid: e.menuid,
-      read: e.read == null ? false : true,
-      write: e.write == null ? false : true,
-      update: e.update == null ? false : true,
-      delete: e.delete == null ? false : true,
-      point: e.point,
-    })
+    if (e.read === true || e.write == true || e.update == true || e.delete == true) {
+      await MenueAssign.create({
+        rolesId: roleId,
+        menuid: e.menuid,
+        read: e.read == null ? false : true,
+        write: e.write == null ? false : true,
+        update: e.update == null ? false : true,
+        delete: e.delete == null ? false : true,
+        point: e.point,
+      })
+    }
   })
   return updateBody;
 };
@@ -531,7 +533,7 @@ const getsalesman = async () => {
         as: 'b2bshopclones_re_da',
       },
     },
-    
+
     {
       $lookup: {
         from: 'b2bshopclones',
@@ -873,12 +875,12 @@ const get_user_menu = async (userRole) => {
         delete: "$menueassigns.delete",
         point: "$menueassigns.point",
         child: "$menueassigns.menues",
-        createdDate:1
+        createdDate: 1
       }
     },
     {
       $sort: {
-        createdDate:1,
+        createdDate: 1,
         point: 1,
       }
     }

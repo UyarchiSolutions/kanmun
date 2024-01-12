@@ -146,6 +146,12 @@ const tempToken = mongoose.Schema({
   },
   long: {
     type: String,
+  },
+  last_joined: {
+    type: String,
+  },
+  front_code: {
+    type: String,
   }
 });
 
@@ -192,6 +198,9 @@ const joinedusers = mongoose.Schema({
   joindedUserBan: {
     type: Boolean,
     default: false
+  },
+  last_joined: {
+    type: String,
   }
 });
 

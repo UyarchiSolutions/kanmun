@@ -47,4 +47,7 @@ router.route('/getFines/Details/ByUsers/:id').get(b2bUsersController.getFines_De
 router.route('/chatBotOtp').post(b2bUsersController.chatBotOtp);
 router.route('/chatBotOtpVerify').post(b2bUsersController.chatBotOtpVerify);
 router.route('/get/Tele/Sales').get(b2bUsersController.get_Tele_Sales);
+
+router.route('/get/push/eligible/user').get(b2bUsersController.get_b2buser_eligible);
+
 module.exports = router;

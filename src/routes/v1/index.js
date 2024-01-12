@@ -109,6 +109,7 @@ const supplierRaisedRoute = require('./supplier.raised.unbilled.route');
 const CustomerWallet = require('./customer.wallet.route');
 const shopEnrollmentEnquiryRoute = require('./shopEnrollmentEnquiry.route');
 const EcomPlan = require('./ecomplan.route');
+const influencer = require('./influencer.route.js');
 const purchasePlan = require('./purchasePlan.route');
 const subHostRoute = require('./subHost.route');
 const SellerRoute = require('./seller.route');
@@ -121,6 +122,7 @@ const ccavenue = require('./ccavenue.route');
 const AgriWallet = require('./agri-exhibitor-wallet.route');
 const ExpoPartner = require('./Partner.expo.router');
 const StreamhistoryRoute = require('./stream.history.route');
+const ClimbEventRouter = require('./climb.event.router.js');
 const defaultRoutes = [
   {
     path: '/ccavenue',
@@ -129,6 +131,10 @@ const defaultRoutes = [
   {
     path: '/purchaseplan',
     route: purchasePlan,
+  },
+  {
+    path: '/climb',
+    route: ClimbEventRouter,
   },
   {
     path: '/agriExhibitorWallet',
@@ -597,7 +603,10 @@ const defaultRoutes = [
     path: '/ecomplan',
     route: EcomPlan,
   },
-
+  {
+    path: '/influencer',
+    route: influencer,
+  },
   // {
   //   path: '/sales',
   //   route: salesApp,

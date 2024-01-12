@@ -70,6 +70,7 @@ router.route('/get/one/post').get(SellerAuth, Ecomcontroller.get_one_post);
 router.route('/update/one/post').put(SellerAuth, postImages, Ecomcontroller.update_one_post);
 router.route('/delete/one/post').delete(SellerAuth, Ecomcontroller.delete_one_post);
 router.route('/remove/one/post').put(SellerAuth, Ecomcontroller.remove_one_post);
+router.route('/toggle/one/post').put(SellerAuth, Ecomcontroller.post_show_toggle);
 
 // Stream Request APIS
 router.route('/create/stream/one').post(SellerAuth, Ecomcontroller.create_stream_one);
@@ -101,6 +102,7 @@ router.route('/subhost/assign/streams').get(SellerAuth, Ecomcontroller.get_subho
 router.route('/allot/stream/subhost').put(SellerAuth, Ecomcontroller.allot_stream_subhost);
 router.route('/cancel/stream').put(SellerAuth, Ecomcontroller.cancel_stream);
 router.route('/remove/stream').put(SellerAuth, Ecomcontroller.remove_stream);
+router.route('/toggle/stream').put(SellerAuth, Ecomcontroller.toggle_stream);
 router.route('/remove/stream/admin').put(authorization, Ecomcontroller.remove_stream_admin);
 router.route('/cancel/stream/admin').put(Ecomcontroller.cancel_stream);
 router.route('/steam/end/now').put(Ecomcontroller.end_stream);
@@ -108,7 +110,10 @@ router.route('/steam/end/now').put(Ecomcontroller.end_stream);
 // live Stream APIS
 
 router.route('/golive/host/view').get(SellerAuth, Ecomcontroller.go_live_stream_host);
+router.route('/front_end/code').post(SellerAuth, Ecomcontroller.front_end_code);
+router.route('/golive/host/view/details').get(SellerAuth, Ecomcontroller.go_live_stream_host_details);
 router.route('/golive/host/view/subhost').get(SellerAuth, Ecomcontroller.get_subhost_token);
+router.route('/details/host/view/subhost').get(SellerAuth, Ecomcontroller.get_subhost_token_details);
 router.route('/golive/subhost/view').get(SellerAuth, Ecomcontroller.go_live_stream_host_subhost);
 
 router.route('/getAll/shop/live/stream').get(shopverify, Ecomcontroller.get_watch_live_steams);
@@ -209,6 +214,7 @@ router.route('/update/pump/views').post(Ecomcontroller.update_pump_views);
 
 router.route('/upload/stream/video').post(authorization, upload_s3.single('video'), Ecomcontroller.upload_s3_stream_video);
 router.route('/upload/stream/video/byuser').post(SellerAuth, upload_s3.single('video'), Ecomcontroller.upload_s3_stream_video);
+router.route('/upload/shorts/video/byuser').post(SellerAuth, upload_s3.single('video'), Ecomcontroller.upload_s3_shorts_video);
 router.route('/upload/stream/video/admin').post(authorization, upload_s3.single('video'), Ecomcontroller.upload_s3_stream_video_admin);
 router.route('/get/stream/by/user').get(SellerAuth, Ecomcontroller.get_stream_by_user);
 router.route('/getStreambyId/:id').get(Ecomcontroller.getStreambyId);
@@ -237,10 +243,16 @@ router.route('/get/address/lat/log').get(SellerAuth, Ecomcontroller.get_address_
 
 
 router.route('/purchese/plan/exhibitor').post(SellerAuth, Ecomcontroller.purchesPlane_exhibitor);
+router.route('/purchese/plan/mexhibitor').post(SellerAuth, Ecomcontroller.purchesPlane_mexhibitor);
 
 router.route('/get_Saved/Product').get(shopverify, Ecomcontroller.get_Saved_Product)
 
 
 
 router.route('/search/product').get(Ecomcontroller.search_product_list)
+
+
+
+router.route('/shorts/all').post(shopverify, Ecomcontroller.get_shorts_all);
+
 module.exports = router;

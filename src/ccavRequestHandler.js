@@ -74,6 +74,45 @@ exports.success_recive = function (request, response) {
 };
 
 
+exports.m_success_recive = function (request, response) {
+    var ccavEncResponse = '',
+        ccavResponse = '',
+        workingKey = 'C9C73B4F2FB59E0EEFEBDD27B8895894',	//Put in the 32-Bit Key provided by CCAvenue.
+        ccavPOST = '';
+    var result = {};
+    let orders = { _id: null };
+    let encryption;
+    request.on('data', function (data) {
+        ccavEncResponse += data;
+        ccavPOST = qs.parse(ccavEncResponse);
+        // console.log(ccavPOST)
+        encryption = ccavPOST.encResp;
+        ccavResponse = ccav.decrypt(encryption, workingKey);
+        // console.log(ccavResponse)
+        // console.log(ccavPOST.my_redirect_url)
+        var keyValuePairs = ccavResponse.split('&');
+        for (var i = 0; i < keyValuePairs.length; i++) {
+            var pair = keyValuePairs[i].split('=');
+            var key = decodeURIComponent(pair[0]);
+            var value = decodeURIComponent(pair[1] || ''); // Use an empty string if the value is missing
+            result[key] = value;
+        }
+        // console.log(result)
+    });
+    request.on('end', async function () {
+        orders = await update_ccavenue_payment(result, encryption)
+        let redirectUrl = "https://mexhibitor.agriexpo.live/"
+        if (result.order_status == 'Success') {
+            redirectUrl = 'https://mexhibitor.agriexpo.live/dashboard/plan/success/' + orders._id;
+
+        }
+        else {
+            redirectUrl = 'https://mexhibitor.agriexpo.live/dashboard/plan/cancel/' + orders._id;
+        }
+        response.redirect(301, redirectUrl);
+    });
+};
+
 exports.payment_success = function (request, response) {
     var ccavEncResponse = '',
         ccavResponse = '',

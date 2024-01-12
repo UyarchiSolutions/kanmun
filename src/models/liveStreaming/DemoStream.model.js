@@ -23,6 +23,12 @@ const demosellerschema = mongoose.Schema({
   name: {
     type: String,
   },
+  type: {
+    type: String,
+  },
+  recuiteUser: {
+    type: String,
+  }
 });
 
 const Demoseller = mongoose.model('demoseller', demosellerschema);
@@ -109,6 +115,30 @@ const demostreamchema = mongoose.Schema({
   demoType: {
     type: String,
     default: "By Admin"
+  },
+  type: {
+    type: String,
+  },
+  chat: {
+    type: Boolean,
+    default: false
+  },
+  recuiteUser: {
+    type: String,
+  },
+  raise_hands: {
+    type: Boolean,
+    default: false
+  },
+  raiseUser: {
+    type: String,
+  },
+  candidate: {
+    type: Number,
+  },
+  condidate_join: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -192,6 +222,15 @@ const Demobuyerschema = mongoose.Schema({
   name: {
     type: String,
   },
+  type: {
+    type: String,
+  },
+  Institution_name: {
+    type: String,
+  },
+  location: {
+    type: String,
+  }
 });
 
 const Demobuyer = mongoose.model('demobuyer', Demobuyerschema);
@@ -363,6 +402,17 @@ const Demostreamchema = mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  usertype: {
+    type: String,
+  },
+  live: {
+    type: Boolean,
+    default: false,
+  },
+  raise_hands: {
+    type: Boolean,
+    default: false
+  }
 });
 
 const DemostreamToken = mongoose.model('demostreamtoken', Demostreamchema);
@@ -970,6 +1020,40 @@ const Demorequstshema = new mongoose.Schema(
 
 const Demorequest = mongoose.model('demorequest', Demorequstshema);
 
+
+
+
+
+
+const demoraisehandsshema = new mongoose.Schema(
+  {
+    _id: {
+      type: String,
+      default: v4,
+    },
+    streamID: {
+      type: String,
+    },
+    userID: {
+      type: String,
+    },
+    dateISO: {
+      type: Number,
+    },
+    joineID: {
+      type: String,
+    },
+    joinLive: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  { timestamps: true }
+);
+
+const Demoraisehands = mongoose.model('demoraisehands', demoraisehandsshema);
+
+
 module.exports = {
   Demoseller,
   Demostream,
@@ -987,5 +1071,6 @@ module.exports = {
   Democloudrecord,
   Feedback,
   TechIssue,
-  Demorequest
+  Demorequest,
+  Demoraisehands
 };

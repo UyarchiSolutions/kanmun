@@ -46,7 +46,7 @@ const change_password = catchAsync(async (req, res) => {
 
 const login_now = catchAsync(async (req, res) => {
   const shop = await registerShop.login_now(req.body);
-  const time = await timeline.login_timeline({ userId: shop._id, InTime: moment(), Device: req.deviceInfo })
+  const time = await timeline.login_timeline({ userId: shop._id, InTime: moment(), Device: req.deviceInfo, userName: shop.SName, mobileNumber: shop.mobile })
   shop.timeline = time._id;
   const tokens = await tokenService.generateAuthTokens_shop(shop);
   time.Token = tokens.saveToken._id;

@@ -36,7 +36,7 @@ const sendOTP_continue = catchAsync(async (req, res) => {
 
 const loginseller = catchAsync(async (req, res) => {
   const data = await SellerService.loginseller(req);
-  const time = await timeline.login_timeline({ userId: data._id, InTime: moment(), Device: req.deviceInfo })
+  const time = await timeline.login_timeline({ userId: data._id, InTime: moment(), Device: req.deviceInfo, userName: data.tradeName, mobileNumber: data.mobileNumber })
   data.timeline = time._id;
   const tokens = await tokenService.generateAuthTokens_sellerApp(data);
   time.Token = tokens.saveToken._id;

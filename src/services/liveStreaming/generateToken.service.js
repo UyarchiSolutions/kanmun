@@ -11,6 +11,8 @@ const axios = require('axios'); //
 //   'base64'
 // )}`;
 const Dates = require('../Date.serive');
+
+const { v4 } = require('uuid')
 const {
   Streamplan,
   StreamPost,
@@ -110,6 +112,7 @@ const generateToken_sub_record = async (channel, isPublisher, req, hostIdss, exp
   });
   //console.log(role);
   const token = await geenerate_rtc_token(channel, uid, role, expirationTimestamp);
+  console.log
   value.token = token;
   value.save();
   return { uid, token, value };
@@ -120,21 +123,15 @@ const generateToken_sub = async (req) => {
   const channel = req.query.id;
   let str = await Streamrequest.findById(channel);
   let users = await Joinusers.find({ streamId: channel }).count();
-  //console.log(users, str.noOfParticipants)
   let user = await Joinusers.findOne({ streamId: channel, shopId: req.shopId });
   if (!user) {
     user = await Joinusers.create({ shopId: req.shopId, streamId: channel, hostId: str.tokenDetails });
     await Dates.create_date(user);
   }
-  let stream = await tempTokenModel.findOne({ streamId: channel, type: 'sub', hostId: { $ne: null }, shopId: req.shopId });
+  let stream = await tempTokenModel.findOne({ streamId: channel, type: 'sub', joinedUser: user._id, shopId: req.shopId });
   if (!stream) {
     const uid = await generateUid();
     const role = Agora.RtcRole.SUBSCRIBER;
-
-    const moment_curr = moment();
-    const currentTimestamp = moment_curr.add(600, 'minutes');
-    const expirationTimestamp =
-      new Date(new Date(currentTimestamp.format('YYYY-MM-DD') + ' ' + currentTimestamp.format('HH:mm:ss'))).getTime() / 1000;
     let value = await tempTokenModel.create({
       ...body,
       ...{
@@ -158,18 +155,11 @@ const generateToken_sub = async (req) => {
     value.save();
     stream = value;
   }
-  await Joinusers.findByIdAndUpdate({ _id: user._id }, { latestedToken: stream._id, token: stream._id }, { new: true });
+  let userjoin = await Joinusers.findByIdAndUpdate({ _id: user._id }, { latestedToken: stream._id, token: stream._id }, { new: true });
   await get_participents_limit(req);
+  req.io.emit(userjoin.last_joined, { leave: true });
   return { stream: stream, user: user };
-  // }
-  // else {
-  //   let user = await Joinusers.findOne({ token: stream._id, shopId: req.shopId, });
-  //   if (!user) {
-  //     throw new ApiError(httpStatus.NOT_FOUND, 'Max participants Reached');
-  //   }
-  //   await get_participents_limit(req)
-  //   return { stream: stream, user: user };
-  // }
+
 };
 
 const getHostTokens = async (req) => {
@@ -313,7 +303,6 @@ const agora_acquire = async (req, id, agroaID) => {
 
 const recording_start = async (req, id) => {
   let token = await tempTokenModel.findOne({ chennel: id, type: 'CloudRecording', recoredStart: { $eq: "acquire" } }).sort({ created: -1 });
-  console.log(token)
   if (token) {
     let str = await Streamrequest.findById(token.streamId);
     let agoraToken = await AgoraAppId.findById(str.agoraID);
@@ -397,18 +386,40 @@ const recording_query = async (req, id, agoraToken) => {
   }).catch((err) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Cloud Recording Query:' + err.message);
   });;
-  if (query.data.serverResponse.fileList.length != 0) {
-    token.videoLink = query.data.serverResponse.fileList[0].fileName;
-    token.videoLink_array = query.data.serverResponse.fileList;
-    let m3u8 = query.data.serverResponse.fileList[0].fileName;
-    if (m3u8 != null) {
-      let mp4 = m3u8.replace('.m3u8', '_0.mp4')
-      token.videoLink_mp4 = mp4;
+
+  if (query.data != null) {
+    if (query.data.serverResponse != null) {
+      if (query.data.serverResponse.fileList != null) {
+        if (query.data.serverResponse.fileList.length != 0) {
+          if (Array.isArray(query.data.serverResponse.fileList)) {
+            token.videoLink = query.data.serverResponse.fileList[0].fileName;
+            token.videoLink_array = query.data.serverResponse.fileList;
+            let m3u8 = query.data.serverResponse.fileList[0].fileName;
+            if (m3u8 != null) {
+              let mp4 = m3u8.replace('.m3u8', '_0.mp4')
+              token.videoLink_mp4 = mp4;
+            }
+            token.recoredStart = 'query';
+            token.save();
+          }
+          else {
+            token.videoLink = query.data.serverResponse.fileList.fileName;
+            let m3u8 = query.data.serverResponse.fileList.fileName;
+            if (m3u8 != null) {
+              let mp4 = m3u8.replace('.m3u8', '_0.mp4')
+              token.videoLink_mp4 = mp4;
+            }
+            token.recoredStart = 'query';
+            token.save();
+          }
+        }
+      }
     }
-    token.recoredStart = 'query';
-    token.save();
+    return query.data;
   }
-  return query.data;
+  else {
+    return { message: "Query failed" };
+  }
 };
 
 const recording_stop = async (req) => {
@@ -437,7 +448,7 @@ const recording_stop = async (req) => {
           },
         }
       ).then((res) => {
-        return res.data;
+        return res;
       }).catch((err) => {
 
         throw new ApiError(httpStatus.NOT_FOUND, 'Cloud Recording Stop:' + err.message);
@@ -521,6 +532,350 @@ const get_sub_token = async (req) => {
   return value[0];
 };
 
+const get_sub_golive_details = async (req, io) => {
+  let code = req.query.code;
+  let streamId = req.query.id;
+  let value = await Joinusers.aggregate([
+    { $match: { $and: [{ _id: { $eq: req.query.id } }, { shopId: { $eq: req.shopId } }] } },
+    {
+      $lookup: {
+        from: 'temptokens',
+        localField: 'latestedToken',
+        foreignField: '_id',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'temptokens',
+              localField: 'hostId',
+              foreignField: '_id',
+              as: 'active_users',
+            },
+          },
+          // { $unwind: "$active_users" },
+          {
+            $project: {
+              active: 1,
+              archived: 1,
+              hostId: 1,
+              type: 1,
+              date: 1,
+              time: 1,
+              created: 1,
+              Uid: 1,
+              chennel: 1,
+              participents: 1,
+              created_num: 1,
+              expDate: 1,
+              token: 1,
+              // hostUid: "$active_users.Uid",
+              // expDate_host: "$active_users.expDate",
+              // active_users: "$active_users"
+            },
+          },
+        ],
+        as: 'temptokens',
+      },
+    },
+    { $unwind: '$temptokens' },
+    {
+      $lookup: {
+        from: 'streamrequests',
+        localField: 'streamId',
+        foreignField: '_id',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'purchasedplans',
+              localField: 'planId',
+              foreignField: '_id',
+              // pipeline: [
+              //   {
+              //     $lookup: {
+              //       from: 'streamplans',
+              //       localField: 'planId',
+              //       foreignField: '_id',
+              //       as: 'streamplans',
+              //     },
+              //   },
+              //   { $unwind: '$streamplans' },
+              // ],
+              as: 'purchasedplans',
+            },
+          },
+          { $unwind: '$purchasedplans' },
+          {
+            $lookup: {
+              from: 'agoraappids',
+              localField: 'agoraID',
+              foreignField: '_id',
+              as: 'agoraappids',
+            },
+          },
+          {
+            $unwind: {
+              preserveNullAndEmptyArrays: true,
+              path: '$agoraappids',
+            },
+          },
+        ],
+        as: 'streamrequests',
+      },
+    },
+    { $unwind: '$streamrequests' },
+    {
+      $lookup: {
+        from: 'streamrequests',
+        localField: 'streamId',
+        foreignField: '_id',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'streamrequestposts',
+              localField: '_id',
+              foreignField: 'streamRequest',
+              pipeline: [
+                {
+                  $lookup: {
+                    from: 'streamposts',
+                    localField: 'postId',
+                    foreignField: '_id',
+                    pipeline: [
+                      {
+                        $lookup: {
+                          from: 'products',
+                          localField: 'productId',
+                          foreignField: '_id',
+                          as: 'products',
+                        },
+                      },
+                      { $unwind: '$products' },
+                      {
+                        $lookup: {
+                          from: 'intrestedproducts',
+                          localField: '_id',
+                          foreignField: 'productID',
+                          pipeline: [
+                            { $match: { $and: [{ userID: req.shopId }] } }
+                          ],
+                          as: 'intrestedproduct',
+                        },
+                      },
+                      {
+                        $unwind: {
+                          preserveNullAndEmptyArrays: true,
+                          path: '$intrestedproduct',
+                        },
+                      },
+                      {
+                        $addFields: {
+                          intrested: { $ifNull: ['$intrestedproduct.intrested', false] },
+                        },
+                      },
+                      {
+                        $lookup: {
+                          from: 'savedproducts',
+                          localField: '_id',
+                          foreignField: 'productID',
+                          pipeline: [
+                            { $match: { $and: [{ userID: req.shopId }] } }
+                          ],
+                          as: 'savedproduct',
+                        },
+                      },
+                      {
+                        $unwind: {
+                          preserveNullAndEmptyArrays: true,
+                          path: '$savedproduct',
+                        },
+                      },
+                      {
+                        $addFields: {
+                          saved: { $ifNull: ['$savedproduct.saved', false] },
+                        },
+                      },
+                    ],
+                    as: 'streamposts',
+                  },
+                },
+                { $unwind: '$streamposts' },
+                {
+                  $addFields: {
+                    image: { $ifNull: ['$streamposts.showImage', '$streamposts.products.image'] },
+                  },
+                },
+                {
+                  $project: {
+                    _id: 1,
+                    active: 1,
+                    archive: 1,
+                    productId: '$streamposts.productId',
+                    productTitle: '$streamposts.products.productTitle',
+                    image: 1,
+                    categoryId: 'a7c95af4-abd5-4fe0-b685-fd93bb98f5ec',
+                    quantity: '$streamposts.quantity',
+                    marketPlace: '$streamposts.marketPlace',
+                    offerPrice: '$streamposts.offerPrice',
+                    postLiveStreamingPirce: '$streamposts.postLiveStreamingPirce',
+                    validity: '$streamposts.validity',
+                    minLots: '$streamposts.minLots',
+                    incrementalLots: '$streamposts.incrementalLots',
+                    bookingAmount: '$streamposts.bookingAmount',
+                    streamPostId: '$streamposts._id',
+                    allowAdd_to_cart: { $gte: ['$streamposts.pendingQTY', '$streamposts.minLots'] },
+                    suppierId: 1,
+                    DateIso: 1,
+                    created: '2023-01-20T11:46:58.201Z',
+                    intrested: "$streamposts.intrested",
+                    saved: "$streamposts.saved",
+                    unit: "$streamposts.unit",
+                  },
+                },
+              ],
+              as: 'streamrequestposts',
+            },
+          },
+        ],
+        as: 'streamrequests_post',
+      },
+    },
+    { $unwind: '$streamrequests_post' },
+
+    {
+      $lookup: {
+        from: 'temptokens',
+        localField: 'streamId',
+        foreignField: 'streamId',
+        pipeline: [
+          {
+            $match: {
+              $or: [{ $and: [{ type: { $eq: 'subhost' } }] }, { type: { $eq: 'Supplier' } }],
+            },
+          },
+          {
+            $lookup: {
+              from: 'sellers',
+              localField: 'supplierId',
+              foreignField: '_id',
+              as: 'subhosts',
+            },
+          },
+          {
+            $unwind: {
+              preserveNullAndEmptyArrays: true,
+              path: '$subhosts',
+            },
+          },
+          {
+            $lookup: {
+              from: 'sellers',
+              localField: 'supplierId',
+              foreignField: '_id',
+              as: 'suppliers',
+            },
+          },
+          {
+            $unwind: {
+              preserveNullAndEmptyArrays: true,
+              path: '$suppliers',
+            },
+          },
+          {
+            $addFields: {
+              supplierName: { $ifNull: ['$suppliers.tradeName', '$subhosts.contactName'] },
+            },
+          },
+        ],
+        as: 'temptokens_sub',
+      },
+    },
+    {
+      $lookup: {
+        from: 'raiseusers',
+        localField: 'streamId',
+        foreignField: 'streamId',
+        pipeline: [
+          { $match: { $and: [{ shopId: { $eq: req.shopId } }] } }
+        ],
+        as: 'raiseusers',
+      },
+    },
+    {
+      $unwind: {
+        preserveNullAndEmptyArrays: true,
+        path: '$raiseusers',
+      },
+    },
+    {
+      $addFields: {
+        raise_hands: { $ifNull: ['$raiseusers.status', 'raise'] },
+      },
+    },
+    {
+      $addFields: {
+        allot_host_1_details: { $cond: { if: { $eq: ['$streamrequests.allot_host_1', 'my self'] }, then: '$streamrequests.suppierId', else: '$streamrequests.allot_host_1' } },
+      },
+    },
+    {
+      $lookup: {
+        from: 'temptokens',
+        localField: 'streamId',
+        foreignField: 'streamId',
+        pipeline: [{ $match: { $and: [{ type: { $eq: 'raiseHands' } }] } }],
+        as: 'raiseID',
+      },
+    },
+    {
+      $unwind: {
+        preserveNullAndEmptyArrays: true,
+        path: '$raiseID',
+      },
+    },
+    {
+      $addFields: {
+        raiseUID: { $ifNull: ['$raiseID.Uid', 0] },
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        active: '$temptokens.active',
+        archived: '$temptokens.archived',
+        hostId: '$temptokens.hostId',
+        type: '$temptokens.type',
+        date: '$temptokens.date',
+        time: '$temptokens.time',
+        created: '$temptokens.created',
+        Uid: '$temptokens.Uid',
+        chennel: '$temptokens.chennel',
+        participents: '$temptokens.participents',
+        created_num: '$temptokens.created_num',
+        expDate: '$temptokens.expDate',
+        token: '$temptokens.token',
+        hostUid: '$temptokens.hostUid',
+        expDate_host: '$temptokens.expDate_host',
+        temptokens: '$temptokens',
+        streamrequests: '$streamrequests',
+        chat: '$streamrequests.purchasedplans.chat_Option',
+        streamrequests_post: '$streamrequests_post',
+        streamrequestposts: '$streamrequests_post.streamrequestposts',
+        chat_need: '$streamrequests.chat_need',
+        temptokens_sub: '$temptokens_sub',
+        joindedUserBan: 1,
+        appID: "$streamrequests.agoraappids.appID",
+        raise_hands: 1,
+        raiseID: "$raiseusers._id",
+        raiseUID: 1,
+        allot_host_1_details: 1,
+        current_raise: "$streamrequests.current_raise",
+        last_joined: 1
+      },
+    },
+  ]);
+  if (value.length == 0) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'plan_not_found');
+  }
+  return value[0];
+};
 const get_sub_golive = async (req, io) => {
   let code = req.query.code;
   let streamId = req.query.id;
@@ -857,12 +1212,39 @@ const get_sub_golive = async (req, io) => {
         raiseUID: 1,
         allot_host_1_details: 1,
         current_raise: "$streamrequests.current_raise",
+        last_joined: 1
       },
     },
   ]);
   if (value.length == 0) {
     throw new ApiError(httpStatus.NOT_FOUND, 'plan_not_found');
   }
+  req.io.emit(value[0].last_joined, { leave: true });
+  let lastJion = v4();
+  value[0].last_joined = lastJion;
+  let join_unser = await Joinusers.findByIdAndUpdate({ _id: value[0]._id }, { last_joined: lastJion }, { new: true });
+  let streamrequest = await Streamrequest.findById(value[0].chennel);
+  if (streamrequest) {
+    let index = streamrequest.join_users.findIndex((a) => a == join_unser.shopId);
+    if (index == -1) {
+      let join = streamrequest.join_users.concat([join_unser.shopId]);
+      streamrequest.join_users = join;
+    }
+    let index_all = streamrequest.Current_join.findIndex((a) => a == join_unser.shopId);
+    if (index_all == -1) {
+      let join = streamrequest.Current_join.concat([join_unser.shopId]);
+      console.log(join,45645)
+      streamrequest.Current_join = join;
+      streamrequest.streamCurrent_Watching = join.length;
+      setTimeout(() => {
+        req.io.emit(value[0].chennel + "_current_watching", { streamCurrent_Watching: streamrequest.streamCurrent_Watching })
+      }, 100)
+    }
+    streamrequest.save();
+
+  }
+
+
   return value[0];
 };
 
@@ -987,7 +1369,7 @@ const get_current_live_stream = async (req) => {
               from: 'streamposts',
               localField: 'postId',
               foreignField: '_id',
-              pipeline: [{ $match: { $and: [{ afterStreaming: { $eq: 'yes' } }] } }],
+              // pipeline: [{ $match: { $and: [{ afterStreaming: { $eq: 'yes' } }] } }],
               as: 'streamposts',
             },
           },
@@ -1164,6 +1546,7 @@ const create_subhost_token = async (req) => {
     stream.save();
   }
   req.io.emit(streamId + '_golive', { streamId: streamId });
+  req.io.emit(value.last_joined, { leave: true });
   await production_supplier_token_cloudrecording(req, streamId, stream.agoraID);
   return value;
 };
@@ -1240,6 +1623,7 @@ const production_supplier_token = async (req) => {
     stream.save();
   }
 
+  req.io.emit(streamId + value.supplierId, { streamId: streamId });
   req.io.emit(streamId + '_golive', { streamId: streamId });
   // console.log(streamId);
   await production_supplier_token_cloudrecording(req, streamId, stream.agoraID);
@@ -1388,14 +1772,14 @@ const production_supplier_token_watchamin = async (req) => {
                     quantity: 1,
                     marketPlace: 1,
                     offerPrice: 1,
-                    postLiveStreamingPirce: 1,
+                    // postLiveStreamingPirce: 1,
                     validity: 1,
                     minLots: 1,
                     incrementalLots: 1,
                     suppierId: 1,
                     DateIso: 1,
                     created: 1,
-                    afterStreaming: 1,
+                    // afterStreaming: 1,
                     bookingAmount: 1,
                     discription: 1,
                     images: 1,
@@ -1428,11 +1812,11 @@ const production_supplier_token_watchamin = async (req) => {
               quantity: '$streamposts.quantity',
               marketPlace: '$streamposts.marketPlace',
               offerPrice: '$streamposts.offerPrice',
-              postLiveStreamingPirce: '$streamposts.postLiveStreamingPirce',
+              // postLiveStreamingPirce: '$streamposts.postLiveStreamingPirce',
               validity: '$streamposts.validity',
               minLots: '$streamposts.minLots',
               incrementalLots: '$streamposts.incrementalLots',
-              afterStreaming: '$streamposts.afterStreaming',
+              // afterStreaming: '$streamposts.afterStreaming',
               bookingAmount: '$streamposts.bookingAmount',
               discription: '$streamposts.discription',
               images: '$streamposts.images',
@@ -2079,6 +2463,7 @@ const raise_request = async (req) => {
         designation: "$shops.designation",
         email: "$shops.email",
         address: "$shops.address",
+        AgriImage: "$shops.AgriImage",
         streamId: 1,
         shopId: 1,
         tempID: 1,
@@ -2114,6 +2499,7 @@ const approve_request = async (req) => {
   raise.status = 'approved';
   raise.sort = 2;
   raise.save();
+  console.log(raise._id, 987867676675)
   req.io.emit(raise._id + '_status', { message: "approved" });
   return raise;
 }
@@ -2129,6 +2515,8 @@ const pending_request = async (req) => {
   stream.save();
   raise.status = 'end';
   raise.sort = 0;
+  raise.re = 0;
+  raise.already_joined = true;
   raise.save();
   req.io.emit(raise._id + '_status', { message: "end" });
   req.io.emit(stream._id + '_raise_hands_request', raise);
@@ -2268,6 +2656,44 @@ const get_raise_hand_user = async (req) => {
   return user[0];
 }
 
+
+const { Users } = require('../../models/B2Busers.model');
+
+const push_notification = async (req) => {
+  const { text, title, image, user } = req.body
+
+  let userss = await Users.findById(user);
+  if (userss) {
+    if (userss.fcmToken.length != 0) {
+      const admin = require('../firebase.service');
+      const token = userss.fcmToken;
+      const message = {
+        tokens: token,
+        notification: {
+          title: text,
+          body: title,
+          image: image
+        },
+        // topic: 'your-topic', // Replace with the topic or device token you want to send the notification to
+      };
+      let messages = await admin
+        .messaging()
+        .sendEachForMulticast(message)
+        .then((response) => {
+          return response;
+        })
+        .catch((error) => console.log(error));
+
+      return messages;
+    }
+    else {
+      return { message: "device Not found" }
+    }
+  }
+  return { message: "user Not found" }
+};
+
+
 module.exports = {
   generateToken,
   getHostTokens,
@@ -2309,5 +2735,6 @@ module.exports = {
 
   // raise Hands
   start_rice_user_hands_admin,
-  get_raise_hands_admin
+  get_raise_hands_admin,
+  push_notification
 };

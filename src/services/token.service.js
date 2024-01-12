@@ -15,14 +15,15 @@ const b2busers = require('../models/B2Busers.model');
  * @param {string} [secret]
  * @returns {string}
  */
-const generateToken = (userId, userRole, expires, type, timeline, secret = config.jwt.secret,) => {
+const generateToken = (userId, userRole, expires, type, timeline, role, secret = config.jwt.secret,) => {
   const payload = {
     _id: userId,
     userRole: userRole,
     iat: moment().unix(),
     exp: expires.unix(),
     type,
-    timeline
+    timeline,
+    role
   };
   return jwt.sign(payload, secret);
 };
@@ -77,9 +78,9 @@ const verifyToken = async (token) => {
  */
 const generateAuthTokens = async (user) => {
   const accessTokenExpires = moment().add(config.jwt.accessExpirationMinutes, 'days');
-  const accessToken = generateToken(user.id, user.userRole, accessTokenExpires, tokenTypes.ACCESS, user.timeline);
+  const accessToken = generateToken(user.id, user.userRole, accessTokenExpires, tokenTypes.ACCESS, user.timeline, 'shop');
   const refreshTokenExpires = moment().add(config.jwt.refreshExpirationDays, 'days');
-  const refreshToken = generateToken(user.id, user.userRole, refreshTokenExpires, tokenTypes.REFRESH, user.timeline);
+  const refreshToken = generateToken(user.id, user.userRole, refreshTokenExpires, tokenTypes.REFRESH, user.timeline, 'shop');
   let saveTokenss = await saveToken(refreshToken, user.id, user.userRole, refreshTokenExpires, tokenTypes.REFRESH);
 
   return {
@@ -143,9 +144,9 @@ const generateVerifyEmailToken = async (user) => {
 
 const generateAuthTokens_shop = async (shop) => {
   const accessTokenExpires = moment().add(config.jwt.accessExpirationMinutes, 'days');
-  const accessToken = generateToken(shop._id, shop, accessTokenExpires, tokenTypes.ACCESS, shop.timeline);
+  const accessToken = generateToken(shop._id, shop, accessTokenExpires, tokenTypes.ACCESS, shop.timeline, 'shop');
   const refreshTokenExpires = moment().add(config.jwt.refreshExpirationDays, 'days');
-  const refreshToken = generateToken(shop._id, shop, refreshTokenExpires, tokenTypes.REFRESH, shop.timeline);
+  const refreshToken = generateToken(shop._id, shop, refreshTokenExpires, tokenTypes.REFRESH, shop.timeline, 'shop');
   let saveTokenss = await saveToken(refreshToken, shop.id, 'visitor', refreshTokenExpires, tokenTypes.REFRESH);
   return {
     access: {
@@ -195,9 +196,9 @@ const generateAuthTokens_verifedOTP = async (user) => {
 };
 const generateAuthTokens_sellerApp = async (user) => {
   const accessTokenExpires = moment().add(config.jwt.accessExpirationMinutes, 'days');
-  const accessToken = generateToken(user._id, user, accessTokenExpires, verifyOTP.ACCESS, user.timeline);
+  const accessToken = generateToken(user._id, user, accessTokenExpires, verifyOTP.ACCESS, user.timeline, 'seller');
   const refreshTokenExpires = moment().add(config.jwt.refreshExpirationDays, 'days');
-  const refreshToken = generateToken(user._id, user, refreshTokenExpires, verifyOTP.REFRESH, user.timeline);
+  const refreshToken = generateToken(user._id, user, refreshTokenExpires, verifyOTP.REFRESH, user.timeline, 'seller');
   let saveTokenss = await saveToken(refreshToken, user.id, user.userRole, refreshTokenExpires, tokenTypes.REFRESH);
   return {
     access: {
