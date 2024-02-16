@@ -32,4 +32,10 @@ router.route('/check/appid').put(authorization, AgoraAppId.update_check_appid_wo
 router.route('/check/appid/reject').put(authorization, AgoraAppId.update_check_appid_faild);
 
 
+
+// router.route('/get/app/id/assign').post(AgoraAppId.get_app_id_details);
+// router.route('/get/app/id/axois').post(AgoraAppId.get_app_id);
+
+
+
 module.exports = router;

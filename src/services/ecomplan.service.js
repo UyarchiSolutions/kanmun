@@ -32,7 +32,7 @@ const { Shop } = require('../models/b2b.ShopClone.model');
 
 const agoraToken = require('./liveStreaming/AgoraAppId.service');
 const Axios = require('axios');
-const { UsageAppID, AgoraAppId } = require('../models/liveStreaming/AgoraAppId.model');
+const { UsageAppID, AgoraAppId, StreamAppID } = require('../models/liveStreaming/AgoraAppId.model');
 const S3video = require('./S3video.service');
 const { Seller } = require('../models/seller.models');
 const ccavenue = require('./ccavenue.service');
@@ -1643,7 +1643,8 @@ const create_stream_one = async (req) => {
   let no_of_host = plan.no_of_host * Duration;
 
   let totalMinutes = numberOfParticipants + no_of_host + Duration;
-  let agoraID = await agoraToken.token_assign(totalMinutes, '', 'agri');
+  let agoraID = await agoraToken.get_app_id({ minutes: totalMinutes, demain: 'https://seewe.co', streamType: 'agri' });
+
 
   let datess = new Date().setTime(new Date(startTime).getTime() + slot.Duration * 60 * 1000);
   let expiretime = datess;
@@ -1651,7 +1652,7 @@ const create_stream_one = async (req) => {
     expiretime = moment(datess).add(plan.stream_validity, plan.TimeType);
   }
   let value;
-  if (agoraID.element != null && agoraID.element != '' && agoraID.element != undefined) {
+  if (agoraID != null && agoraID != '' && agoraID != undefined) {
     value = await Streamrequest.create({
       ...req.body,
       ...{
@@ -1672,7 +1673,7 @@ const create_stream_one = async (req) => {
         bookingslotId: slot_booking._id,
         streamingDate: slot.date,
         streamPlanId: plan.planId,
-        agoraID: agoraID.element._id,
+        agoraID: agoraID._id,
         totalMinues: totalMinutes,
         chat_need: plan.chat_Option,
         completedStream: plan.completedStream,
@@ -1683,7 +1684,9 @@ const create_stream_one = async (req) => {
         adminApprove: 'Approved',
       },
     });
-    await UsageAppID.findByIdAndUpdate({ _id: agoraID.vals._id }, { streamID: value._id }, { new: true });
+
+    await StreamAppID.findByIdAndUpdate({ _id: agoraID._id }, { streamId: value._id }, { new: true });
+    // await UsageAppID.findByIdAndUpdate({ _id: agoraID.vals._id }, { streamID: value._id }, { new: true });
     req.body.post.forEach(async (a) => {
       let streamposts = await StreamPost.findByIdAndUpdate({ _id: a }, { isUsed: true, status: 'Assigned' }, { new: true });
       streamposts.timeline.push({ status: 'Assigned', Time: new Date().getTime(), timelieId: req.timeline });
@@ -2530,7 +2533,7 @@ const end_stream = async (req) => {
     .findOne({ chennel: req.query.id, type: 'CloudRecording', recoredStart: { $eq: 'query' } })
     .sort({ created: -1 });
   if (token != null) {
-    let agoraToken = await AgoraAppId.findById(value.agoraID);
+    let agoraToken = await StreamAppID.findById(value.agoraID);
     console.log(agoraToken, 23142);
     const Authorization = `Basic ${Buffer.from(agoraToken.Authorization.replace(/\s/g, '')).toString('base64')}`;
     const resource = token.resourceId;
@@ -3673,7 +3676,7 @@ const go_live_stream_host_details = async (req, userId) => {
     },
     {
       $lookup: {
-        from: 'agoraappids',
+        from: 'streamappids',
         localField: 'agoraID',
         foreignField: '_id',
         as: 'agoraappids',
@@ -4022,7 +4025,7 @@ const go_live_stream_host = async (req, userId) => {
     },
     {
       $lookup: {
-        from: 'agoraappids',
+        from: 'streamappids',
         localField: 'agoraID',
         foreignField: '_id',
         as: 'agoraappids',
@@ -15516,7 +15519,7 @@ const get_shorts_all = async (req) => {
         secondarycommunication: 1,
         broucher: 1,
         streamCurrent_Watching: 1,
-        shortsLink:1
+        shortsLink: 1
       },
     },
     { $skip: 5 * page },

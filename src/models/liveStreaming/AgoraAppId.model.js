@@ -103,6 +103,12 @@ const UsageAppIDschema = mongoose.Schema({
     },
     streamType: {
         type: String,
+    },
+    type: {
+        type: String,
+    },
+    demain: {
+        type: String,
     }
 });
 
@@ -170,4 +176,55 @@ const TestAgoraschema = mongoose.Schema({
 );
 
 const TestAgora = mongoose.model('testagoraappid', TestAgoraschema);
-module.exports = { AgoraAppId, UsageAppID, TestAgora };
+
+
+
+
+
+
+const streamAppidschema = mongoose.Schema({
+    _id: {
+        type: String,
+        default: v4,
+    },
+    active: {
+        type: Boolean,
+        default: true,
+    },
+    archive: {
+        type: Boolean,
+        default: false,
+    },
+    streamId: {
+        type: String,
+    },
+    appID: {
+        type: String,
+    },
+    Authorization: {
+        type: String,
+    },
+    cloud_KEY: {
+        type: String,
+    },
+    cloud_secret: {
+        type: String,
+    },
+    appCertificate: {
+        type: String,
+    },
+    duration: {
+        type: Number,
+        default: 0
+    }
+
+},
+    { timestamps: true }
+);
+
+const StreamAppID = mongoose.model('streamappid', streamAppidschema);
+
+
+
+
+module.exports = { AgoraAppId, UsageAppID, TestAgora, StreamAppID };

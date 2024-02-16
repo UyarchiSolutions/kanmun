@@ -22,7 +22,7 @@ const {
 } = require('../../models/ecomplan.model');
 const { request } = require('express');
 
-const { AgoraAppId, UsageAppID } = require('../../models/liveStreaming/AgoraAppId.model');
+const { AgoraAppId, UsageAppID,StreamAppID } = require('../../models/liveStreaming/AgoraAppId.model');
 
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
@@ -83,7 +83,7 @@ const generateToken = async (req) => {
   return { uid, token, value, cloud_recording, stream };
 };
 const geenerate_rtc_token = async (chennel, uid, role, expirationTimestamp, agoraID) => {
-  let agoraToken = await AgoraAppId.findById(agoraID)
+  let agoraToken = await StreamAppID.findById(agoraID)
   return Agora.RtcTokenBuilder.buildTokenWithUid(agoraToken.appID.replace(/\s/g, ''), agoraToken.appCertificate.replace(/\s/g, ''), chennel, uid, role, expirationTimestamp);
 };
 const generateToken_sub_record = async (channel, isPublisher, req, hostIdss, expire) => {
@@ -277,7 +277,7 @@ const participents_limit = async (req) => {
 
 const agora_acquire = async (req, id, agroaID) => {
   let temtoken = id;
-  let agoraToken = await AgoraAppId.findById(agroaID);
+  let agoraToken = await StreamAppID.findById(agroaID);
   console.log(agoraToken, 8888)
   // let temtoken=req.body.id;
   let token = await tempTokenModel.findById(temtoken);
@@ -305,7 +305,7 @@ const recording_start = async (req, id) => {
   let token = await tempTokenModel.findOne({ chennel: id, type: 'CloudRecording', recoredStart: { $eq: "acquire" } }).sort({ created: -1 });
   if (token) {
     let str = await Streamrequest.findById(token.streamId);
-    let agoraToken = await AgoraAppId.findById(str.agoraID);
+    let agoraToken = await StreamAppID.findById(str.agoraID);
     const Authorization = `Basic ${Buffer.from(agoraToken.Authorization.replace(/\s/g, '')).toString(
       'base64'
     )}`;
@@ -426,7 +426,7 @@ const recording_stop = async (req) => {
   let token = await tempTokenModel.findOne({ chennel: req.body.stream, type: 'CloudRecording', recoredStart: { $eq: "query" } }).sort({ created: -1 });
   if (token) {
     let str = await Streamrequest.findById(token.streamId);
-    let agoraToken = await AgoraAppId.findById(str.agoraID);
+    let agoraToken = await StreamAppID.findById(str.agoraID);
     const Authorization = `Basic ${Buffer.from(agoraToken.Authorization.replace(/\s/g, '')).toString(
       'base64'
     )}`;
@@ -605,7 +605,7 @@ const get_sub_golive_details = async (req, io) => {
           { $unwind: '$purchasedplans' },
           {
             $lookup: {
-              from: 'agoraappids',
+              from: 'streamappids',
               localField: 'agoraID',
               foreignField: '_id',
               as: 'agoraappids',
@@ -950,7 +950,7 @@ const get_sub_golive = async (req, io) => {
           { $unwind: '$purchasedplans' },
           {
             $lookup: {
-              from: 'agoraappids',
+              from: 'streamappids',
               localField: 'agoraID',
               foreignField: '_id',
               as: 'agoraappids',
@@ -1233,7 +1233,7 @@ const get_sub_golive = async (req, io) => {
     let index_all = streamrequest.Current_join.findIndex((a) => a == join_unser.shopId);
     if (index_all == -1) {
       let join = streamrequest.Current_join.concat([join_unser.shopId]);
-      console.log(join,45645)
+      console.log(join, 45645)
       streamrequest.Current_join = join;
       streamrequest.streamCurrent_Watching = join.length;
       setTimeout(() => {
@@ -1633,7 +1633,7 @@ const production_supplier_token = async (req) => {
 const production_supplier_token_cloudrecording = async (req, id, agroaID) => {
   let streamId = id;
   // let streamId = req.body.streamId;
-  let agoraToken = await AgoraAppId.findById(agroaID)
+  let agoraToken = await StreamAppID.findById(agroaID)
   let stream = await Streamrequest.findById(streamId);
   if (!stream) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Stream not found');
@@ -1736,7 +1736,7 @@ const production_supplier_token_watchamin = async (req) => {
 
     const token = await geenerate_rtc_token(stream._id, uid, role, expirationTimestamp, stream.agoraID);
     value.token = token;
-    let agoraToken = await AgoraAppId.findById(stream.agoraID)
+    let agoraToken = await StreamAppID.findById(stream.agoraID)
     value.appID = agoraToken.appID
     value.save();
   }

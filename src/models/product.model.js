@@ -85,28 +85,7 @@ const productSchema = mongoose.Schema({
   productDiscount: {
     type: Number,
   },
-  needBidding: {
-    type: String,
-    enum: ['yes', 'no'],
-  },
-  biddingStartDate: {
-    type: Date,
-  },
-  biddingStartTime: {
-    type: String,
-  },
-  biddingEndDate: {
-    type: Date,
-  },
-  biddingEndTime: {
-    type: String,
-  },
-  maxBidAomunt: {
-    type: Number,
-  },
-  minBidAmount: {
-    type: Number,
-  },
+
   onlinePrice: {
     type: Number,
   },
@@ -126,6 +105,27 @@ const productSchema = mongoose.Schema({
   archive: {
     type: Boolean,
     default: false,
+  },
+  auther_name: {
+    type: String,
+  },
+  edition: {
+    type: String,
+  },
+  binding: {
+    type: String,
+  },
+  ISBN: {
+    type: String,
+  },
+  no_of_page: {
+    type: String,
+  },
+  language: {
+    type: String,
+  },
+  Description: {
+    type: String,
   },
 });
 productSchema.plugin(toJSON);
@@ -225,7 +225,6 @@ const stockSchema = mongoose.Schema({
     type: Boolean,
     default: false,
   },
-
   vehicleType: {
     type: String,
   },

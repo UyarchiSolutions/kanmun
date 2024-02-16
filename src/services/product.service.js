@@ -40,24 +40,12 @@ const createProduct = async (productBody, req) => {
     }
   }
 
-  // console.log(req.files.galleryImages)
-  // console.log(req.files)
-  // console.log(req.file)
+
   productBody.galleryImages = galleryImages;
   productBody.image = image;
-  let { needBidding, biddingStartDate, biddingStartTime, biddingEndDate, biddingEndTime, maxBidAomunt, minBidAmount } =
-    productBody;
-  if (needBidding === 'no') {
-    (biddingStartDate = null),
-      (biddingStartTime = null),
-      (biddingEndDate = null),
-      (biddingEndTime = null),
-      (maxBidAomunt = null),
-      (minBidAmount = null);
-  } else {
-    biddingStartDate, biddingStartTime, biddingEndDate, biddingEndTime, maxBidAomunt, minBidAmount;
-  }
-  return Product.create(productBody);
+  let product = await Product.create(productBody);
+
+  return product;
 };
 const doplicte_check = async (req, res, next) => {
   const { body } = req;

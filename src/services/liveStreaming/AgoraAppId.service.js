@@ -1,7 +1,7 @@
 const httpStatus = require('http-status');
 const ApiError = require('../../utils/ApiError');
 const moment = require('moment');
-const { AgoraAppId, UsageAppID, TestAgora } = require('../../models/liveStreaming/AgoraAppId.model');
+const { AgoraAppId, UsageAppID, TestAgora, StreamAppID } = require('../../models/liveStreaming/AgoraAppId.model');
 const Agora = require('agora-access-token');
 const axios = require('axios');
 
@@ -143,8 +143,8 @@ const token_assign = async (minutes, streamID, streamType) => {
   let minimum = 9500 - parseInt(minutes);
   let token = await AgoraAppId.find({ expired: false, userMinutes: { $lt: minimum }, type: { $ne: 'paid' } }).limit(10);
   let paid = await AgoraAppId.findById('33ee26ed-c087-4e5f-b11d-dc0972e2bd36');
-  console.log(paid);
-  console.log(token);
+  // console.log(paid);
+  // console.log(token);
   return new Promise(async (resolve) => {
     if (minutes < 9500) {
       for (let i = 0; i < token.length; i++) {
@@ -509,6 +509,49 @@ const update_check_appid = async (req, data) => {
   return agoraToken;
 };
 
+
+// const get_app_id_details = async (req) => {
+
+//   let { demain, type, minutes, streamId, streamType } = req.body;
+
+//   if (minutes > 9500) {
+//     throw new ApiError(httpStatus.NOT_FOUND, 'Minutes TOO Large');
+//   }
+
+//   let agora = await token_assign(minutes, streamId, streamType);
+
+//   if (!agora) {
+//     throw new ApiError(httpStatus.NOT_FOUND, 'Agora Token not found');
+//   }
+
+//   let vals = await UsageAppID.findByIdAndUpdate({ _id: agora.vals._id }, { type: type, demain: demain }, { new: true });
+
+//   return agora.element;
+
+//   // return 
+// }
+
+const get_app_id = async (data) => {
+
+
+  const query = await axios.post(`https://agriexpo.click/v2/agora/get/app/id/assign`, data);
+
+  let create_app = await StreamAppID.create(
+    {
+      appID: query.data.appID,
+      Authorization: query.data.Authorization,
+      cloud_KEY: query.data.cloud_KEY,
+      cloud_secret: query.data.cloud_secret,
+      appCertificate: query.data.appCertificate,
+      duration: data.minutes,
+      streamId: data.streamId,
+    }
+  );
+  return create_app
+}
+
+
+
 module.exports = {
   InsertAppId,
   InsertAget_app_id,
@@ -526,4 +569,6 @@ module.exports = {
   get_all_token_check,
   update_check_appid,
   get_all_token_my,
+  // get_app_id_details,
+  get_app_id
 };

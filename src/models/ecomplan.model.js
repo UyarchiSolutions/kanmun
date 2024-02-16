@@ -236,9 +236,11 @@ const streamPostschema = mongoose.Schema({
   },
   minLots: {
     type: Number,
+    default: 1
   },
   incrementalLots: {
     type: Number,
+    default: 1
   },
   productId: {
     type: String,
